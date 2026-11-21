@@ -7129,6 +7129,17 @@ html.nt #products-grid>button img{position:static!important;width:62%!important;
 html.nt #products-grid>button>div:first-child>span:first-child{text-align:center!important;width:100%;line-height:1.25!important}
 html.nt #products-grid>button>div:last-child{justify-content:center!important}
 }
+@media (min-width:761px){
+html.nt #products-grid>button:not(.in-cart){background-image:radial-gradient(circle at 22% 55%,rgba(34,197,94,.18),transparent 60%),linear-gradient(160deg,#ffffff,#f0fdf4)!important}
+html.nt.dark #products-grid>button:not(.in-cart){background-image:radial-gradient(circle at 22% 55%,rgba(56,189,248,.22),transparent 60%),linear-gradient(160deg,#16275c,#0c1536)!important}
+html.nt #products-grid>button{position:relative;overflow:hidden}
+html.nt #products-grid>button>div{position:static!important}
+html.nt #products-grid>button img{position:absolute!important;left:8px;top:8px;bottom:8px;width:auto!important;height:auto!important;max-width:46%;aspect-ratio:1;object-fit:contain;border-radius:0!important;z-index:0;filter:drop-shadow(0 6px 8px rgba(0,0,0,.28))!important;pointer-events:none}
+html.nt #products-grid>button>div>span:not(:has(>img)),html.nt #products-grid>button>div>b{position:relative;z-index:1}
+html.nt #products-grid>button>div>span:has(>img){position:static!important}
+html.nt #products-grid>button>div:first-child>span:first-child{max-width:56%}
+html.nt.dark #products-grid>button>div:first-child>span:first-child{text-shadow:0 1px 3px rgba(0,0,0,.8)}
+}
 /* النوافذ */
 html.nt .fixed.inset-0[class*="bg-black"]{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 html.nt .fixed.inset-0>div[class*="rounded"]{border-radius:26px!important;box-shadow:0 30px 80px -20px rgba(0,0,0,.55)!important}
