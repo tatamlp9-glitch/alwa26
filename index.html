@@ -6847,7 +6847,7 @@ async function bioRefresh() {
             const st = document.createElement('style');
             st.textContent = '.bio-ic{width:1.6em;height:1.6em;flex:none;display:inline-block;vertical-align:middle;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}'
                 + '.bio-lbtn{display:flex;align-items:center;justify-content:center;gap:10px;color:#fff;background:linear-gradient(135deg,#064e3b,#0f766e 55%,#0369a1)}.bio-lbtn:active{transform:scale(.97)}'
-                + '.bio-gbtn{width:52px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(135deg,#064e3b,#0f766e 55%,#0369a1);box-shadow:0 4px 12px rgba(15,118,110,.4)}.bio-gbtn .bio-ic{width:30px;height:30px}.bio-gbtn:active{transform:scale(.94)}'
+                + '.bio-gbtn{min-width:52px;padding:0 14px;gap:6px;color:#fff;font-weight:800;font-size:14px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(135deg,#064e3b,#0f766e 55%,#0369a1);box-shadow:0 4px 12px rgba(15,118,110,.4)}.bio-gbtn .bio-ic{width:30px;height:30px}.bio-gbtn:active{transform:scale(.94)}'
                 + '.bio-scan{animation:bioScan 2.2s ease-in-out infinite}@keyframes bioScan{0%,100%{transform:translateY(0)}50%{transform:translateY(23px)}}'
                 + '.bio-scan2{stroke-dasharray:16;animation:bioFp 2s ease-in-out infinite}@keyframes bioFp{0%,100%{stroke-dashoffset:16}50%{stroke-dashoffset:0}}'
                 + '@media (prefers-reduced-motion:reduce){.bio-scan,.bio-scan2{animation:none}}';
@@ -6859,7 +6859,7 @@ async function bioRefresh() {
             if (lbtn && !$('bio-login')) { const b = bioBtn('bio-login', BIO.icon() + '<span>دخول بـ ' + BIO.label() + '</span>', bioLogin, 'bio-lbtn w-full mt-2 py-2.5 rounded-xl font-bold shadow transition'); b.style.display = 'none'; lbtn.parentElement.insertBefore(b, lbtn.nextSibling); }
             // زر بنافذة «قسم محمي»
             const gok = document.querySelector('#modal-gate button[onclick="gateOk()"]');
-            if (gok && !$('bio-gate')) { const b = bioBtn('bio-gate', BIO.icon(), bioGate, 'bio-gbtn'); b.title = BIO.label(); b.style.display = 'none'; gok.parentElement.insertBefore(b, gok); }
+            if (gok && !$('bio-gate')) { const b = bioBtn('bio-gate', BIO.icon() + '<span>' + (/iPhone|iPad|Macintosh/.test(navigator.userAgent) ? 'Face ID' : 'البصمة') + '</span>', bioGate, 'bio-gbtn'); b.title = BIO.label(); b.style.display = 'none'; gok.parentElement.insertBefore(b, gok); }
             // الإعدادات
             const ai = $('set-ai'); const lab = ai && ai.closest('label');
             if (lab && !$('bio-box')) {
@@ -6896,11 +6896,6 @@ async function bioRefresh() {
                 };
                 wrapped._bio = 1; window.doLogin = wrapped;
             }
-        } catch (e) {}
-        // أول ما تنفتح نافذة القسم المحمي يشتغل Face ID / البصمة مباشرة (داخل نفس الضغطة)
-        try {
-            const os = window.switchTab;
-            if (os && !os._bio) { const w = function () { const r = os.apply(this, arguments); try { const mg = $('modal-gate'); if (BIO.id() && mg && !mg.classList.contains('hidden')) { try { document.activeElement && document.activeElement.blur(); } catch (e) {} bioGate(); } } catch (e) {} return r; }; w._bio = 1; window.switchTab = w; }
         } catch (e) {}
         try {
             const mg = $('modal-gate');
