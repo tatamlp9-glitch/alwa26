@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // غيّر هذه القائمة: ضع فيها بالضبط أسماء المستخدمين مع @alwa.app (المدير والعمال)
+    function allowed() {
+      return request.auth != null && request.auth.token.email in [
+        "zirak@alwa.app",
+        "laptop@alwa.app",
+        "phone@alwa.app"
+      ];
+    }
+    match /{document=**} {
+      allow read, write: if allowed();
+    }
+  }
+}
