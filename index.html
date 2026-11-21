@@ -6829,22 +6829,24 @@ const BIO = {
     b64: b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
     unb64: s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0)),
     rnd: n => crypto.getRandomValues(new Uint8Array(n)),
-    id: () => { try { return localStorage.getItem('alwa_bio_id'); } catch (e) { return null; } },
+    ids() { try { let a = JSON.parse(localStorage.getItem('alwa_bio_ids') || 'null'); if (!Array.isArray(a)) { a = []; const o = localStorage.getItem('alwa_bio_id'); if (o) a.push({ id: o, n: 'البصمة 1' }); localStorage.setItem('alwa_bio_ids', JSON.stringify(a)); } return a; } catch (e) { return []; } },
+    setIds(a) { try { localStorage.setItem('alwa_bio_ids', JSON.stringify(a)); if (a.length) localStorage.setItem('alwa_bio_id', a[0].id); else localStorage.removeItem('alwa_bio_id'); } catch (e) {} },
+    id() { const a = BIO.ids(); return a.length ? a[0].id : null; },
     async ok() { try { return !!(window.PublicKeyCredential && window.isSecureContext && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch (e) { return false; } },
     icon() { const k = (BIO._n = (BIO._n || 0) + 1); return (/iPhone|iPad|Macintosh/.test(navigator.userAgent) ? "<svg class=\"bio-ic bio-eye\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><defs><linearGradient id=\"bioG1\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#34d399\"/><stop offset=\"1\" stop-color=\"#0ea5e9\"/></linearGradient><radialGradient id=\"bioG2\" cx=\".4\" cy=\".35\" r=\".7\"><stop offset=\"0\" stop-color=\"#a7f3d0\"/><stop offset=\".55\" stop-color=\"#10b981\"/><stop offset=\"1\" stop-color=\"#065f46\"/></radialGradient><clipPath id=\"bioC\"><path d=\"M6 24c4.5-7.5 10.6-11.5 18-11.5S37.5 16.5 42 24c-4.5 7.5-10.6 11.5-18 11.5S10.5 31.5 6 24z\"/></clipPath></defs><g fill=\"none\" stroke=\"url(#bioG1)\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M4 13V9a5 5 0 0 1 5-5h4M35 4h4a5 5 0 0 1 5 5v4M44 35v4a5 5 0 0 1-5 5h-4M13 44H9a5 5 0 0 1-5-5v-4\"/><path d=\"M6 24c4.5-7.5 10.6-11.5 18-11.5S37.5 16.5 42 24c-4.5 7.5-10.6 11.5-18 11.5S10.5 31.5 6 24z\" stroke-width=\"2.6\"/></g><g clip-path=\"url(#bioC)\"><circle cx=\"24\" cy=\"24\" r=\"7.2\" fill=\"url(#bioG2)\"/><circle cx=\"24\" cy=\"24\" r=\"3.1\" fill=\"#022c22\"/><circle cx=\"21.6\" cy=\"21.4\" r=\"1.6\" fill=\"#fff\" opacity=\".9\"/><rect class=\"bio-scan\" x=\"4\" y=\"11\" width=\"40\" height=\"2.4\" rx=\"1.2\" fill=\"#5eead4\" opacity=\".85\"/></g></svg>" : "<svg class=\"bio-ic bio-fp\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><defs><linearGradient id=\"bioG3\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#34d399\"/><stop offset=\"1\" stop-color=\"#0ea5e9\"/></linearGradient></defs><g fill=\"none\" stroke=\"url(#bioG3)\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M12.5 11.5A16 16 0 0 1 38 17\"/><path d=\"M8.5 19a16 16 0 0 1 2-4\"/><path d=\"M9 30c-.8-2.4-1-4.6-1-6.4\"/><path d=\"M39.5 21.5c.4 1.4.5 2.9.5 4.5 0 3.5-.6 6.8-1.6 9.8\"/><path d=\"M14 36c-1.6-3.6-2.5-7.6-2.5-11.8 0-6.9 5.6-12.5 12.5-12.5 5.4 0 10 3.5 11.8 8.3\"/><path d=\"M19.5 40c-2.3-4.4-3.5-9.4-3.5-14.6 0-4.4 3.6-8 8-8s8 3.6 8 8c0 4.4-.7 8.6-2 12.6\"/><path d=\"M26 41c1.3-3 2-6.6 2-10.2v-5.4a4 4 0 0 0-8 0c0 5.6 1.4 10.9 3.9 15.6\"/><path d=\"M24 25.4c0 4.7.9 9.2 2.5 13.3\" class=\"bio-scan2\"/></g></svg>").replace(/bioG\d|bioC/g, m => m + '_' + k); },
     label() { const u = navigator.userAgent; return /iPhone|iPad|Macintosh/.test(u) ? 'Face ID / البصمة' : (/Windows/.test(u) ? 'Windows Hello / البصمة' : 'البصمة'); },
-    async enroll(name) {
+    async enroll(name, label) {
         const c = await navigator.credentials.create({ publicKey: {
             challenge: BIO.rnd(32), rp: { name: 'علوة 26' },
             user: { id: BIO.rnd(16), name: name || 'alwa', displayName: name || 'alwa' },
             pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
             authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
             timeout: 60000, attestation: 'none' } });
-        localStorage.setItem('alwa_bio_id', BIO.b64(c.rawId)); return true;
+        const a = BIO.ids(); a.push({ id: BIO.b64(c.rawId), n: (label || '').trim() || ('البصمة ' + (a.length + 1)) }); BIO.setIds(a); return true;
     },
     async check() {
-        const id = BIO.id(); if (!id) return false;
-        const a = await navigator.credentials.get({ publicKey: { challenge: BIO.rnd(32), allowCredentials: [{ type: 'public-key', id: BIO.unb64(id), transports: ['internal'] }], userVerification: 'required', timeout: 60000 } });
+        const L = BIO.ids(); if (!L.length) return false;
+        const a = await navigator.credentials.get({ publicKey: { challenge: BIO.rnd(32), allowCredentials: L.map(x => ({ type: 'public-key', id: BIO.unb64(x.id), transports: ['internal'] })), userVerification: 'required', timeout: 60000 } });
         return !!a;
     },
     db() { return new Promise((res, rej) => { const q = indexedDB.open('alwa_bio_db', 1); q.onupgradeneeded = () => q.result.createObjectStore('k'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
@@ -6852,7 +6854,7 @@ const BIO = {
     async key() { let k = await BIO.idb('get', 'aes'); if (!k) { k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']); await BIO.idb('put', 'aes', k); } return k; },
     async saveCred(u, p) { const k = await BIO.key(), iv = BIO.rnd(12); const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, new TextEncoder().encode(JSON.stringify({ u, p }))); localStorage.setItem('alwa_bio_cred', BIO.b64(iv) + '.' + BIO.b64(ct)); },
     async loadCred() { const s = localStorage.getItem('alwa_bio_cred'); if (!s) return null; const [iv, ct] = s.split('.'); const k = await BIO.key(); const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: BIO.unb64(iv) }, k, BIO.unb64(ct)); return JSON.parse(new TextDecoder().decode(pt)); },
-    async off() { try { localStorage.removeItem('alwa_bio_id'); localStorage.removeItem('alwa_bio_cred'); await BIO.idb('del', 'aes'); } catch (e) {} }
+    async off() { try { localStorage.removeItem('alwa_bio_id'); localStorage.removeItem('alwa_bio_ids'); localStorage.removeItem('alwa_bio_cred'); await BIO.idb('del', 'aes'); } catch (e) {} }
 };
 let _bioLast = null; // آخر اسم وكلمة سر دخل بيهم (بالذاكرة فقط) حتى نعرض تفعيل البصمة
 function bioBtn(id, txt, fn, cls) { const b = document.createElement('button'); b.type = 'button'; b.id = id; b.className = cls; b.innerHTML = txt; b.onclick = fn; return b; }
@@ -6869,13 +6871,15 @@ async function bioGate() {
 }
 async function bioEnable(u, p) {
     try {
-        await BIO.enroll(u);
+        const ni = $('bio-name'), lbl = ni ? ni.value : '';
+        await BIO.enroll(u, lbl); if (ni) ni.value = '';
         if (u && p) await BIO.saveCred(u, p);
-        bioRefresh(); showToast('تم تفعيل ' + BIO.label() + ' على هذا الجهاز ✓');
+        bioRefresh(); showToast('تمت إضافة ' + (lbl.trim() || BIO.label()) + ' ✓ (المجموع: ' + BIO.ids().length + ')');
     } catch (e) { if (e && e.name !== 'NotAllowedError' && e.name !== 'AbortError') showToast('الجهاز ما يدعم البصمة هنا، أو ما مفعّلة بإعدادات الجهاز', true); }
 }
 async function bioSettingsEnable() {
     let u = '', p = '';
+    try { if (BIO.ids().length && localStorage.getItem('alwa_bio_cred')) { const c0 = await BIO.loadCred(); if (c0) { bioEnable(c0.u, ''); return; } } } catch (e) {}
     try { const em = window.firebase && firebase.auth().currentUser && firebase.auth().currentUser.email; if (em) u = em.split('@')[0]; } catch (e) {}
     if (_bioLast && (!u || _bioLast.u === u)) { u = _bioLast.u; p = _bioLast.p; }
     if (!p) {
@@ -6895,7 +6899,9 @@ async function bioRefresh() {
     const lb = $('bio-login'); if (lb) lb.style.display = on && hasCred ? '' : 'none';
     const gb = $('bio-gate'); if (gb) gb.style.display = on ? '' : 'none';
     const st = $('bio-state'); if (st) st.textContent = !ok ? 'هذا الجهاز أو المتصفح ما يدعم البصمة / Face ID' : (on ? 'مفعّل على هذا الجهاز ✓' : 'غير مفعّل على هذا الجهاز');
-    const en = $('bio-en'), ds = $('bio-dis'); if (en) en.style.display = ok && !on ? '' : 'none'; if (ds) ds.style.display = on ? '' : 'none';
+    const en = $('bio-en'), ds = $('bio-dis'); if (en) { en.style.display = ok ? '' : 'none'; en.textContent = on ? '＋ إضافة بصمة / وجه ثاني' : 'تفعيل على هذا الجهاز'; } if (ds) ds.style.display = on ? '' : 'none';
+    const ni = $('bio-name'); if (ni) ni.style.display = ok ? '' : 'none';
+    const ls = $('bio-list'); if (ls) { const L = BIO.ids(); ls.innerHTML = ''; L.forEach((x, i) => { const r = document.createElement('div'); r.className = 'bio-row'; const s = document.createElement('span'); s.textContent = '✓ ' + x.n; const del = document.createElement('button'); del.type = 'button'; del.textContent = 'حذف'; del.onclick = () => confirmBox('تحذف «' + x.n + '»؟', async () => { const A = BIO.ids(); A.splice(i, 1); if (A.length) BIO.setIds(A); else await BIO.off(); bioRefresh(); showToast('انحذفت'); }, null, 'نعم، احذف', 'لا'); r.appendChild(s); r.appendChild(del); ls.appendChild(r); }); }
 }
 (function bioInit() {
     const init = () => {
@@ -6921,9 +6927,10 @@ async function bioRefresh() {
             const ai = $('set-ai'); const lab = ai && ai.closest('label');
             if (lab && !$('bio-box')) {
                 const d = document.createElement('div'); d.id = 'bio-box'; d.className = 'mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold';
-                d.innerHTML = '<div class="flex items-center gap-2">' + BIO.icon() + '<span>الدخول بـ ' + BIO.label() + ' (بدل كلمة السر بشاشة الدخول وبالأقسام المحمية)</span></div><div id="bio-state" class="text-xs text-slate-500 mt-1"></div><div class="flex gap-2 mt-2"><button type="button" id="bio-en" class="px-3 py-2 bg-brand-600 text-white text-xs font-bold rounded-lg">تفعيل على هذا الجهاز</button><button type="button" id="bio-dis" class="px-3 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-lg">إيقاف</button></div>';
+                d.innerHTML = '<div class="flex items-center gap-2">' + BIO.icon() + '<span>الدخول بـ ' + BIO.label() + ' (بدل كلمة السر بشاشة الدخول وبالأقسام المحمية)</span></div><div id="bio-state" class="text-xs text-slate-500 mt-1"></div><div id="bio-list" class="mt-2"></div><input id="bio-name" maxlength="30" class="w-full mt-2 p-2 border border-slate-300 rounded-lg text-sm font-bold" placeholder="اسم البصمة (مثلاً: إصبع أخوي، وجه زيرك)"><div class="flex flex-wrap gap-2 mt-2"><button type="button" id="bio-en" class="px-3 py-2 bg-brand-600 text-white text-xs font-bold rounded-lg">تفعيل على هذا الجهاز</button><button type="button" id="bio-dis" class="px-3 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-lg">إيقاف الكل</button></div><div class="text-[11px] text-slate-500 mt-2 leading-relaxed">كل واحد يضيف بصمته من جهازه أو على نفس الجهاز. ملاحظة: البصمة نفسها يتحقق منها الجهاز، فلازم الإصبع أو الوجه يكون مضاف أولاً بإعدادات الجهاز (الآيفون: Face ID ← إعداد مظهر بديل، الويندوز: Windows Hello ← إضافة إصبع آخر).</div>';
+                const bst = document.createElement('style'); bst.textContent = '.bio-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;margin-top:4px;border-radius:10px;background:rgba(16,185,129,.1);font-size:13px}.bio-row button{font-size:11px;font-weight:800;color:#dc2626;background:rgba(220,38,38,.1);padding:3px 10px;border-radius:8px}'; document.head.appendChild(bst);
                 lab.parentElement.insertBefore(d, lab.nextSibling);
-                $('bio-en').onclick = bioSettingsEnable; $('bio-dis').onclick = async () => { await BIO.off(); bioRefresh(); showToast('توقفت البصمة على هذا الجهاز'); };
+                $('bio-en').onclick = bioSettingsEnable; $('bio-dis').onclick = async () => { await BIO.off(); bioRefresh(); showToast('توقفت البصمة على هذا الجهاز'); }; $('bio-dis').onclick = () => confirmBox('توقف كل البصمات على هذا الجهاز؟', async () => { await BIO.off(); bioRefresh(); showToast('توقفت البصمة على هذا الجهاز'); }, null, 'نعم', 'لا');
             }
             if (!$('modal-bio')) {
                 const m = document.createElement('div'); m.id = 'modal-bio'; m.className = 'fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-3 hidden no-print';
