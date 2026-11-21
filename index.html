@@ -6685,7 +6685,8 @@ function aiParseBtn(auto) {
     const ok = plan.buyer || plan.newCart || plan.clear || plan.recv || plan.print || plan.items.some(i => i.p) || plan.remove.some(i => i.p);
     if (!ok) h = '<div class="text-red-600 font-bold text-sm">ما فهمت. جرب: «عند احمد طماطه 20 كيلو بسعر 1500 خيار 10 كيلو بالف، الواصل 30 الف، اطبع الوصل»</div>';
     box.innerHTML = h; $('ai-go').classList.toggle('hidden', !ok); if (auto && !ok) ai2Snd('err');
-    const allGood = ok && !plan.items.some(i => !i.p) && !plan.remove.some(i => !i.p);
+    const allGood = ok; // ينفّذ اللي فهمه فوراً، واللي ما فهمه يطلع تنبيه
+    if (auto && ok && (plan.items.some(i => !i.p) || plan.remove.some(i => !i.p))) { try { showToast('ما لگيت: ' + plan.items.filter(i => !i.p).concat(plan.remove.filter(i => !i.p)).map(i => i.q || i.raw).join('، '), true); } catch (e) {} }
     if (auto && allGood && ai2AutoOn()) {
         _ai2Timer = setTimeout(() => { _ai2Timer = null; aiRun(); }, 200); // ينفّذ فوراً
     }
@@ -7116,6 +7117,16 @@ html.nt #products-grid>button{min-height:118px;border-radius:20px!important;padd
 html.nt #products-grid>button>div:first-child>span:first-child{font-size:1rem!important;font-weight:900!important;line-height:1.35}
 html.nt #products-grid>button img{width:46px!important;height:46px!important;filter:drop-shadow(0 4px 4px rgba(0,0,0,.15))}
 html.nt #products-grid>button .font-mono{font-size:.95rem!important;padding:.25rem .6rem!important;border-radius:999px!important}
+/* صورة المادة كبيرة وواضحة بدل الخطوط */
+html.nt:not(.dark) #products-grid>button{background-image:none!important;background-color:#fff!important}
+html.nt.dark #products-grid>button{background-image:none!important}
+html.nt #products-grid{grid-auto-rows:auto!important}
+html.nt #products-grid>button{height:auto!important;min-height:150px;justify-content:space-between!important;padding:.65rem .55rem .6rem!important}
+html.nt #products-grid>button>div:first-child{flex-direction:column-reverse!important;align-items:center!important;justify-content:flex-start!important;gap:4px}
+html.nt #products-grid>button>div:first-child>span:last-child{display:flex;justify-content:center;width:100%}
+html.nt #products-grid>button img{position:static!important;width:62%!important;max-width:86px;height:auto!important;aspect-ratio:1;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.18))!important}
+html.nt #products-grid>button>div:first-child>span:first-child{text-align:center!important;width:100%;line-height:1.25!important}
+html.nt #products-grid>button>div:last-child{justify-content:center!important}
 /* النوافذ */
 html.nt .fixed.inset-0[class*="bg-black"]{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 html.nt .fixed.inset-0>div[class*="rounded"]{border-radius:26px!important;box-shadow:0 30px 80px -20px rgba(0,0,0,.55)!important}
