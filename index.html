@@ -6775,6 +6775,7 @@ const BIO = {
     rnd: n => crypto.getRandomValues(new Uint8Array(n)),
     id: () => { try { return localStorage.getItem('alwa_bio_id'); } catch (e) { return null; } },
     async ok() { try { return !!(window.PublicKeyCredential && window.isSecureContext && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch (e) { return false; } },
+    icon() { return /iPhone|iPad|Macintosh/.test(navigator.userAgent) ? "<svg class=\"bio-ic bio-eye\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><defs><linearGradient id=\"bioG1\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#34d399\"/><stop offset=\"1\" stop-color=\"#0ea5e9\"/></linearGradient><radialGradient id=\"bioG2\" cx=\".4\" cy=\".35\" r=\".7\"><stop offset=\"0\" stop-color=\"#a7f3d0\"/><stop offset=\".55\" stop-color=\"#10b981\"/><stop offset=\"1\" stop-color=\"#065f46\"/></radialGradient><clipPath id=\"bioC\"><path d=\"M6 24c4.5-7.5 10.6-11.5 18-11.5S37.5 16.5 42 24c-4.5 7.5-10.6 11.5-18 11.5S10.5 31.5 6 24z\"/></clipPath></defs><g fill=\"none\" stroke=\"url(#bioG1)\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M4 13V9a5 5 0 0 1 5-5h4M35 4h4a5 5 0 0 1 5 5v4M44 35v4a5 5 0 0 1-5 5h-4M13 44H9a5 5 0 0 1-5-5v-4\"/><path d=\"M6 24c4.5-7.5 10.6-11.5 18-11.5S37.5 16.5 42 24c-4.5 7.5-10.6 11.5-18 11.5S10.5 31.5 6 24z\" stroke-width=\"2.6\"/></g><g clip-path=\"url(#bioC)\"><circle cx=\"24\" cy=\"24\" r=\"7.2\" fill=\"url(#bioG2)\"/><circle cx=\"24\" cy=\"24\" r=\"3.1\" fill=\"#022c22\"/><circle cx=\"21.6\" cy=\"21.4\" r=\"1.6\" fill=\"#fff\" opacity=\".9\"/><rect class=\"bio-scan\" x=\"4\" y=\"11\" width=\"40\" height=\"2.4\" rx=\"1.2\" fill=\"#5eead4\" opacity=\".85\"/></g></svg>" : "<svg class=\"bio-ic bio-fp\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><defs><linearGradient id=\"bioG3\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#34d399\"/><stop offset=\"1\" stop-color=\"#0ea5e9\"/></linearGradient></defs><g fill=\"none\" stroke=\"url(#bioG3)\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M12.5 11.5A16 16 0 0 1 38 17\"/><path d=\"M8.5 19a16 16 0 0 1 2-4\"/><path d=\"M9 30c-.8-2.4-1-4.6-1-6.4\"/><path d=\"M39.5 21.5c.4 1.4.5 2.9.5 4.5 0 3.5-.6 6.8-1.6 9.8\"/><path d=\"M14 36c-1.6-3.6-2.5-7.6-2.5-11.8 0-6.9 5.6-12.5 12.5-12.5 5.4 0 10 3.5 11.8 8.3\"/><path d=\"M19.5 40c-2.3-4.4-3.5-9.4-3.5-14.6 0-4.4 3.6-8 8-8s8 3.6 8 8c0 4.4-.7 8.6-2 12.6\"/><path d=\"M26 41c1.3-3 2-6.6 2-10.2v-5.4a4 4 0 0 0-8 0c0 5.6 1.4 10.9 3.9 15.6\"/><path d=\"M24 25.4c0 4.7.9 9.2 2.5 13.3\" class=\"bio-scan2\"/></g></svg>"; },
     label() { const u = navigator.userAgent; return /iPhone|iPad|Macintosh/.test(u) ? 'Face ID / البصمة' : (/Windows/.test(u) ? 'Windows Hello / البصمة' : 'البصمة'); },
     async enroll(name) {
         const c = await navigator.credentials.create({ publicKey: {
@@ -6843,23 +6844,33 @@ async function bioRefresh() {
 (function bioInit() {
     const init = () => {
         try {
+            const st = document.createElement('style');
+            st.textContent = '.bio-ic{width:1.6em;height:1.6em;flex:none;display:inline-block;vertical-align:middle;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}'
+                + '.bio-lbtn{display:flex;align-items:center;justify-content:center;gap:10px;color:#fff;background:linear-gradient(135deg,#064e3b,#0f766e 55%,#0369a1)}.bio-lbtn:active{transform:scale(.97)}'
+                + '.bio-gbtn{width:52px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(135deg,#064e3b,#0f766e 55%,#0369a1);box-shadow:0 4px 12px rgba(15,118,110,.4)}.bio-gbtn .bio-ic{width:30px;height:30px}.bio-gbtn:active{transform:scale(.94)}'
+                + '.bio-scan{animation:bioScan 2.2s ease-in-out infinite}@keyframes bioScan{0%,100%{transform:translateY(0)}50%{transform:translateY(23px)}}'
+                + '.bio-scan2{stroke-dasharray:16;animation:bioFp 2s ease-in-out infinite}@keyframes bioFp{0%,100%{stroke-dashoffset:16}50%{stroke-dashoffset:0}}'
+                + '@media (prefers-reduced-motion:reduce){.bio-scan,.bio-scan2{animation:none}}';
+            document.head.appendChild(st);
+        } catch (e) {}
+        try {
             // زر بشاشة الدخول
             const lbtn = document.querySelector('#screen-login button[onclick="doLogin()"]');
-            if (lbtn && !$('bio-login')) { const b = bioBtn('bio-login', '👆 دخول بـ ' + BIO.label(), bioLogin, 'w-full mt-2 bg-slate-800 hover:bg-slate-700 text-white py-2.5 rounded-xl font-bold shadow transition'); b.style.display = 'none'; lbtn.parentElement.insertBefore(b, lbtn.nextSibling); }
+            if (lbtn && !$('bio-login')) { const b = bioBtn('bio-login', BIO.icon() + '<span>دخول بـ ' + BIO.label() + '</span>', bioLogin, 'bio-lbtn w-full mt-2 py-2.5 rounded-xl font-bold shadow transition'); b.style.display = 'none'; lbtn.parentElement.insertBefore(b, lbtn.nextSibling); }
             // زر بنافذة «قسم محمي»
             const gok = document.querySelector('#modal-gate button[onclick="gateOk()"]');
-            if (gok && !$('bio-gate')) { const b = bioBtn('bio-gate', '👆', bioGate, 'px-4 bg-slate-800 text-white py-2.5 rounded-lg font-bold text-lg'); b.title = BIO.label(); b.style.display = 'none'; gok.parentElement.insertBefore(b, gok); }
+            if (gok && !$('bio-gate')) { const b = bioBtn('bio-gate', BIO.icon(), bioGate, 'bio-gbtn'); b.title = BIO.label(); b.style.display = 'none'; gok.parentElement.insertBefore(b, gok); }
             // الإعدادات
             const ai = $('set-ai'); const lab = ai && ai.closest('label');
             if (lab && !$('bio-box')) {
                 const d = document.createElement('div'); d.id = 'bio-box'; d.className = 'mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold';
-                d.innerHTML = '<div>👆 الدخول بـ ' + BIO.label() + ' (بدل كلمة السر بشاشة الدخول وبالأقسام المحمية)</div><div id="bio-state" class="text-xs text-slate-500 mt-1"></div><div class="flex gap-2 mt-2"><button type="button" id="bio-en" class="px-3 py-2 bg-brand-600 text-white text-xs font-bold rounded-lg">تفعيل على هذا الجهاز</button><button type="button" id="bio-dis" class="px-3 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-lg">إيقاف</button></div>';
+                d.innerHTML = '<div class="flex items-center gap-2">' + BIO.icon() + '<span>الدخول بـ ' + BIO.label() + ' (بدل كلمة السر بشاشة الدخول وبالأقسام المحمية)</span></div><div id="bio-state" class="text-xs text-slate-500 mt-1"></div><div class="flex gap-2 mt-2"><button type="button" id="bio-en" class="px-3 py-2 bg-brand-600 text-white text-xs font-bold rounded-lg">تفعيل على هذا الجهاز</button><button type="button" id="bio-dis" class="px-3 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-lg">إيقاف</button></div>';
                 lab.parentElement.insertBefore(d, lab.nextSibling);
                 $('bio-en').onclick = bioSettingsEnable; $('bio-dis').onclick = async () => { await BIO.off(); bioRefresh(); showToast('توقفت البصمة على هذا الجهاز'); };
             }
             if (!$('modal-bio')) {
                 const m = document.createElement('div'); m.id = 'modal-bio'; m.className = 'fixed inset-0 bg-black/60 z-[90] flex items-center justify-center p-3 hidden no-print';
-                m.innerHTML = '<div class="bg-white rounded-xl shadow-2xl w-full max-w-xs p-5 border border-slate-200"><h3 class="text-lg font-bold text-slate-800 mb-1">👆 تفعيل البصمة</h3><p class="text-xs text-slate-500 mb-3">اكتب كلمة سر حسابك مرة وحدة، وبعدها تدخل بالبصمة.</p><input id="bio-pass" type="password" autocomplete="current-password" class="w-full p-3 border-2 border-slate-300 rounded-lg text-center font-bold text-lg" placeholder="كلمة سر الحساب"><p id="bio-err" class="hidden text-xs font-bold text-red-600 mt-2 text-center">كلمة السر غير صحيحة</p><div class="flex gap-2 mt-3"><button type="button" id="bio-ok" class="flex-1 bg-brand-600 text-white py-2.5 rounded-lg font-bold">متابعة</button><button type="button" onclick="document.getElementById(\'modal-bio\').classList.add(\'hidden\')" class="flex-1 bg-slate-200 text-slate-700 py-2.5 rounded-lg font-bold">إلغاء</button></div></div>';
+                m.innerHTML = '<div class="bg-white rounded-xl shadow-2xl w-full max-w-xs p-5 border border-slate-200"><h3 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">' + BIO.icon() + 'تفعيل البصمة</h3><p class="text-xs text-slate-500 mb-3">اكتب كلمة سر حسابك مرة وحدة، وبعدها تدخل بالبصمة.</p><input id="bio-pass" type="password" autocomplete="current-password" class="w-full p-3 border-2 border-slate-300 rounded-lg text-center font-bold text-lg" placeholder="كلمة سر الحساب"><p id="bio-err" class="hidden text-xs font-bold text-red-600 mt-2 text-center">كلمة السر غير صحيحة</p><div class="flex gap-2 mt-3"><button type="button" id="bio-ok" class="flex-1 bg-brand-600 text-white py-2.5 rounded-lg font-bold">متابعة</button><button type="button" onclick="document.getElementById(\'modal-bio\').classList.add(\'hidden\')" class="flex-1 bg-slate-200 text-slate-700 py-2.5 rounded-lg font-bold">إلغاء</button></div></div>';
                 document.body.appendChild(m);
                 $('bio-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('bio-ok').click(); });
             }
@@ -6886,7 +6897,11 @@ async function bioRefresh() {
                 wrapped._bio = 1; window.doLogin = wrapped;
             }
         } catch (e) {}
-        // كل ما تنفتح نافذة القسم المحمي، نشغّل البصمة مباشرة إذا مفعّلة
+        // أول ما تنفتح نافذة القسم المحمي يشتغل Face ID / البصمة مباشرة (داخل نفس الضغطة)
+        try {
+            const os = window.switchTab;
+            if (os && !os._bio) { const w = function () { const r = os.apply(this, arguments); try { const mg = $('modal-gate'); if (BIO.id() && mg && !mg.classList.contains('hidden')) { try { document.activeElement && document.activeElement.blur(); } catch (e) {} bioGate(); } } catch (e) {} return r; }; w._bio = 1; window.switchTab = w; }
+        } catch (e) {}
         try {
             const mg = $('modal-gate');
             if (mg) new MutationObserver(() => { if (!mg.classList.contains('hidden') && BIO.id() && !mg._bioT) { mg._bioT = 1; setTimeout(() => { mg._bioT = 0; }, 1500); bioRefresh(); } }).observe(mg, { attributes: true, attributeFilter: ['class'] });
