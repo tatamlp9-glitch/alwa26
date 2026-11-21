@@ -7451,4 +7451,216 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 </script>
+<script>
+// ============================================================
+//  المساعد الذكي (Gemini): يسمع صوتك مباشرة، يفهم العراقي والكردي، وينفّذ بالنظام
+// ============================================================
+(function alwaGemini() {
+    const $g = id => document.getElementById(id);
+    const LS = { get: k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem(k); } catch (e) {} } };
+    let KEY = LS.get('alwa_gem_key'), MODEL = LS.get('alwa_gem_model'), busy = false, REC = null;
+    const cfg = () => firebase.firestore().collection('cfg').doc('ai');
+    async function loadKey() {
+        if (KEY) return KEY;
+        try { const d = await cfg().get(); if (d.exists && d.data().k) { KEY = d.data().k; LS.set('alwa_gem_key', KEY); } } catch (e) {}
+        return KEY;
+    }
+    async function pickModel() {
+        if (MODEL) return MODEL;
+        try {
+            const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': KEY } }); const j = await r.json();
+            const ms = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace('models/', ''));
+            const pref = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-flash-lite-latest'];
+            MODEL = pref.find(p => ms.includes(p)) || ms.find(m => /flash/.test(m) && !/image|tts|live|audio|preview-tts|embedding/.test(m)) || 'gemini-2.5-flash';
+        } catch (e) { MODEL = 'gemini-2.5-flash'; }
+        LS.set('alwa_gem_model', MODEL); return MODEL;
+    }
+    // ---------- معلومات النظام اللي يحتاجها الذكاء ----------
+    function context() {
+        const P = (products || []).map(p => p.id + '|' + p.name + '|' + (p.perUnit ? 'عدد' : 'كيلو') + '|' + (p.defaultPrice || 0)).join('\n');
+        const c = (carts || [])[activeCart] || {};
+        const items = (cart || []).map(i => i.name + ': ' + (i.weight || 0) + ' كيلو، ' + (i.bags || 0) + ' عدد، سعر ' + (i.pricePerKg || 0)).join(' | ') || 'فارغة';
+        const open = (carts || []).filter(x => !x.orderId).map(x => (x.customer || 'بدون اسم') + ' (' + ((x.items || []).length) + ' مواد)').join('، ');
+        let today = ''; try { const ts = new Date().toLocaleDateString('ar-IQ'); const tv = (invoices || []).filter(v => String(v.date || '').startsWith(ts)); today = tv.length + ' وصلة، مجموعها ' + tv.reduce((a, v) => a + (Number(v.grandTotal) || 0), 0); } catch (e) {}
+        let deb = ''; try { deb = JSON.stringify((debts || []).slice(0, 25).map(d => ({ n: d.name || d.customer, a: d.amount || d.total || d.debt }))); } catch (e) {}
+        return 'المواد (رقم|اسم|وحدة|السعر الاعتيادي):\n' + P
+            + '\n\nالسلة الحالية: المشتري «' + (c.customer || ($g('customer-name') || {}).value || 'بدون') + '»، المواد: ' + items
+            + '\nالسلال المفتوحة: ' + (open || 'لا شي') + '\nمبيعات اليوم: ' + (today || 'غير معروف') + '\nالديون: ' + (deb || '[]')
+            + '\nالتبويب الحالي: ' + (typeof curTab !== 'undefined' ? curTab : 'pos');
+    }
+    const SYS = () => `انت مساعد ذكي داخل نظام كاشير لعلوة خضار وفواكه بالعراق اسمها «${(typeof settings !== 'undefined' && settings.shop) || 'علوة'}».
+صاحب العلوة يحچي وياك بالعراقي (أو بالكردي البهديني/السوراني) وانت تفهم شنو يريد وتحوّله لأوامر ينفذها النظام فوراً.
+قواعد:
+- الأسعار بالدينار العراقي للكيلو (أو للعدد إذا المادة بالعدد). «بالف» = 1000، «الف وخمسميه» = 1500، «ربع» = 250 إذا سعر أو 0.25 إذا وزن، «كيلو ونص» = 1.5.
+- طابق أسماء المواد مع القائمة حتى لو الكلام مختلف شوي (طماطة/طماطم/بندورة، لالنگي/يوسفي...) ورجّع رقم المادة id بالضبط من القائمة. إذا ما موجودة نهائياً لا تخترع، اذكرها بـ say.
+- إذا ذكر اسم شخص («عند احمد»، «حساب ابو علي»، «لكاوه») فهذا المشتري.
+- «الواصل/دفع/استلمت N» = paid. «الباقي دين/الدين N» = debt.
+- لا تسوي شي ما طلبه. إذا سأل سؤال (مثلاً شكد بعنا اليوم) جاوبه بـ say من المعلومات بدون actions.
+- say: جملة قصيرة جداً بالعراقي تأكد شنو سويت.
+رجّع JSON فقط بهذا الشكل:
+{"heard":"اللي سمعته بالضبط","say":"...","actions":[
+ {"t":"buyer","name":"..."},
+ {"t":"new","name":"(اختياري)"},
+ {"t":"add","id":123,"kg":0,"count":0,"price":0},
+ {"t":"remove","id":123},
+ {"t":"paid","amount":0},{"t":"debt","amount":0},{"t":"note","text":"..."},
+ {"t":"clear"},{"t":"print"},{"t":"order"},
+ {"t":"tab","tab":"pos|orders|archive|debts|calc|farmers|profit|stock|trash|manage|settings"}
+]}
+kg و count و price حطها 0 إذا ما ذكرها (السعر 0 = السعر الاعتيادي).
+
+${context()}`;
+    async function ask(parts) {
+        if (!(await loadKey())) throw new Error('nokey');
+        const m = await pickModel();
+        const gen = { responseMimeType: 'application/json', temperature: 0.15 };
+        if (/2\.5-flash/.test(m)) gen.thinkingConfig = { thinkingBudget: 0 };
+        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': KEY }, body: JSON.stringify({ systemInstruction: { parts: [{ text: SYS() }] }, contents: [{ role: 'user', parts }], generationConfig: gen }) });
+        if (r.status === 429) throw new Error('quota');
+        if (r.status === 400 || r.status === 403) { const t = await r.text(); if (/API key|PERMISSION|key not valid/i.test(t)) throw new Error('badkey'); if (/model/i.test(t)) { MODEL = ''; LS.del('alwa_gem_model'); } throw new Error('bad:' + t.slice(0, 120)); }
+        if (r.status === 404) { MODEL = ''; LS.del('alwa_gem_model'); throw new Error('model'); }
+        const j = await r.json();
+        const txt = (((j.candidates || [])[0] || {}).content || {}).parts ? j.candidates[0].content.parts.map(p => p.text || '').join('') : '';
+        const s = txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1);
+        return JSON.parse(s);
+    }
+    // ---------- تسجيل الصوت (WAV) مع إيقاف تلقائي عند السكوت ----------
+    function recWav(onLevel) {
+        const AC = new (window.AudioContext || window.webkitAudioContext)(); try { AC.resume(); } catch (e) {}
+        return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }).then(stream => new Promise(res => {
+            const src = AC.createMediaStreamSource(stream), proc = AC.createScriptProcessor(4096, 1, 1), chunks = [];
+            let spoke = false, last = Date.now(), t0 = Date.now(), floor = 0, nf = 0, done = false;
+            const stop = (cancel) => { if (done) return; done = true; try { proc.disconnect(); src.disconnect(); } catch (e) {} stream.getTracks().forEach(t => t.stop()); const rate = AC.sampleRate; try { AC.close(); } catch (e) {} REC = null; res(!cancel && spoke ? wav(chunks, rate) : null); };
+            REC = { stop };
+            proc.onaudioprocess = e => {
+                const d = e.inputBuffer.getChannelData(0); chunks.push(new Float32Array(d));
+                let s = 0; for (let i = 0; i < d.length; i += 2) s += d[i] * d[i]; const rms = Math.sqrt(s / (d.length / 2));
+                const now = Date.now();
+                if (now - t0 < 350) { floor = (floor * nf + rms) / (++nf); return; }
+                const thr = Math.max(0.018, floor * 2.6); onLevel && onLevel(Math.min(1, rms / (thr * 3)));
+                if (rms > thr) { spoke = true; last = now; }
+                if (spoke && now - last > 1000) stop();
+                if (!spoke && now - t0 > 7000) stop();
+                if (now - t0 > 25000) stop();
+            };
+            src.connect(proc); proc.connect(AC.destination);
+        }));
+    }
+    function wav(chunks, rate) {
+        const len = chunks.reduce((a, c) => a + c.length, 0), all = new Float32Array(len); let o = 0; chunks.forEach(c => { all.set(c, o); o += c.length; });
+        const R = 16000, ratio = rate / R, n = Math.floor(len / ratio), pcm = new Int16Array(n);
+        for (let i = 0; i < n; i++) { const a = Math.floor(i * ratio), b = Math.min(len, Math.floor((i + 1) * ratio)); let s = 0; for (let k = a; k < b; k++) s += all[k]; const v = Math.max(-1, Math.min(1, s / Math.max(1, b - a))); pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff; }
+        const buf = new ArrayBuffer(44 + pcm.length * 2), dv = new DataView(buf), w = (p, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(p + i, s.charCodeAt(i)); };
+        w(0, 'RIFF'); dv.setUint32(4, 36 + pcm.length * 2, true); w(8, 'WAVE'); w(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, R, true); dv.setUint32(28, R * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, 'data'); dv.setUint32(40, pcm.length * 2, true);
+        new Int16Array(buf, 44).set(pcm);
+        let bin = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) bin += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+        return btoa(bin);
+    }
+    // ---------- تنفيذ أوامر الذكاء ----------
+    function run(res) {
+        const acts = Array.isArray(res.actions) ? res.actions : [];
+        const findP = a => (products || []).find(p => String(p.id) === String(a.id)) || (a.name ? (ai2Match((normName(a.name)).split(' '), 0) || {}).p : null);
+        const plan = { buyer: '', items: [], remove: [], recv: 0, print: false, newCart: false, clear: false };
+        const extra = [];
+        acts.forEach(a => {
+            const t = a.t || a.type;
+            if (t === 'buyer' && a.name) plan.buyer = String(a.name);
+            else if (t === 'new') { plan.newCart = true; if (a.name) plan.buyer = String(a.name); }
+            else if (t === 'add') { const p = findP(a); plan.items.push({ p, q: a.name || '', raw: '', kg: Number(a.kg) || 0, bags: Number(a.count) || 0, price: Number(a.price) || 0 }); }
+            else if (t === 'remove') { const p = findP(a); if (p) plan.remove.push({ p, q: '' }); }
+            else if (t === 'paid') plan.recv = Number(a.amount) || 0;
+            else if (t === 'clear') plan.clear = true;
+            else if (t === 'print') plan.print = true;
+            else extra.push(a);
+        });
+        plan.items = plan.items.filter(i => i.p);
+        const has = plan.buyer || plan.newCart || plan.clear || plan.recv || plan.print || plan.items.length || plan.remove.length;
+        if (has) { _aiPlan = plan; aiRun(); }
+        else { $g('modal-ai').classList.add('hidden'); }
+        extra.forEach(a => {
+            const t = a.t || a.type;
+            try {
+                if (t === 'debt') { const f = $g('inv-debt'); f.value = Number(a.amount) || 0; f.dispatchEvent(new Event('input', { bubbles: true })); persistCarts(); }
+                else if (t === 'note') { const f = $g('inv-note'); if (f) { f.value = String(a.text || ''); f.dispatchEvent(new Event('input', { bubbles: true })); persistCarts(); } }
+                else if (t === 'order') setTimeout(() => cartToOrder(), 400);
+                else if (t === 'tab' && TABS.includes(a.tab)) setTimeout(() => switchTab(a.tab), has ? 500 : 0);
+            } catch (e) {}
+        });
+        if (res.say) { try { showToast(res.say); } catch (e) {} if (!has) { ai2Snd('ok'); ai2Say(res.say); } }
+    }
+    function status(html) { const b = $g('ai-prev'); if (b) b.innerHTML = html; }
+    function fail(e) {
+        busy = false; const m = String(e && e.message || e);
+        if (m === 'quota') status('<div class="text-amber-700 font-bold text-sm">خلصت طلبات الذكاء المجانية لليوم. رجعت للمساعد العادي.</div>');
+        else if (m === 'badkey') status('<div class="text-red-700 font-bold text-sm">مفتاح Gemini غلط. صلّحه من الإعدادات.</div>');
+        else status('<div class="text-red-700 font-bold text-sm">ما گدرت أوصل للذكاء (النت؟). جرّب مرة ثانية.</div>');
+        try { ai2Snd('err'); } catch (x) {}
+        const mic = $g('ai-mic'); if (mic) mic.textContent = '🎤 اضغط وتكلم';
+    }
+    async function handle(parts, heardFallback) {
+        busy = true; const mic = $g('ai-mic'); if (mic) mic.innerHTML = '🧠 يفهم كلامك...';
+        status('<div class="flex items-center gap-2 font-bold text-violet-700"><span class="ai3-dots"><i></i><i></i><i></i></span> يفكّر...</div>');
+        try {
+            const res = await ask(parts); busy = false;
+            const t = $g('ai-txt'); if (t) { t.classList.remove('hidden'); t.value = res.heard || heardFallback || ''; }
+            if (mic) mic.textContent = '🎤 اضغط وتكلم';
+            run(res);
+        } catch (e) { fail(e); }
+    }
+    async function voice() {
+        if (busy) return;
+        if (REC) { REC.stop(); return; }
+        const mic = $g('ai-mic'); $g('modal-ai').classList.remove('hidden');
+        status('<div class="ai3-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>');
+        if (mic) mic.innerHTML = '🔴 أسمعك... تكلم (اضغط حتى توقف)';
+        const bars = () => document.querySelectorAll('.ai3-wave i');
+        let b64 = null;
+        try { b64 = await recWav(lv => { bars().forEach((x, i) => { x.style.transform = 'scaleY(' + (0.25 + lv * (0.6 + ((i * 37) % 5) / 6)) + ')'; }); }); }
+        catch (e) { if (mic) mic.textContent = '🎤 اضغط وتكلم'; status('<div class="text-red-700 font-bold text-sm">اسمح للمايك من إعدادات المتصفح وجرّب مرة ثانية.</div>'); return; }
+        if (!b64) { if (mic) mic.textContent = '🎤 اضغط وتكلم'; status('<div class="text-slate-500 font-bold text-sm">ما سمعت شي. اضغط وتكلم.</div>'); return; }
+        try { ai2Snd('tick'); } catch (e) {}
+        handle([{ inlineData: { mimeType: 'audio/wav', data: b64 } }, { text: 'هذا أمري الصوتي. افهمه ونفّذه.' }]);
+    }
+    // ---------- ربط بالمساعد الموجود ----------
+    const oldMic = window.aiMic;
+    window.aiMic = function () { if (KEY && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return voice(); return oldMic.apply(this, arguments); };
+    document.addEventListener('click', e => {
+        if (!KEY || !e.target.closest || !e.target.closest('#ai-go')) return;
+        const t = ($g('ai-txt') || {}).value || ''; if (!t.trim() || busy) return;
+        e.stopPropagation(); e.preventDefault(); handle([{ text: t }], t);
+    }, true);
+    document.addEventListener('keydown', e => { if (KEY && e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'ai-txt' && e.target.value.trim()) { e.preventDefault(); handle([{ text: e.target.value }], e.target.value); } }, true);
+    // ---------- الشكل ----------
+    const st = document.createElement('style');
+    st.textContent = '.ai3-wave{display:flex;align-items:center;justify-content:center;gap:6px;height:56px}.ai3-wave i{width:7px;height:46px;border-radius:9px;background:linear-gradient(#a78bfa,#7c3aed);transform:scaleY(.25);transition:transform .08s}'
+        + '.ai3-dots{display:inline-flex;gap:4px}.ai3-dots i{width:8px;height:8px;border-radius:50%;background:#7c3aed;animation:ai3b 1s infinite ease-in-out}.ai3-dots i:nth-child(2){animation-delay:.15s}.ai3-dots i:nth-child(3){animation-delay:.3s}@keyframes ai3b{0%,80%,100%{transform:scale(.5);opacity:.5}40%{transform:scale(1.1);opacity:1}}'
+        + '#gem-box input{direction:ltr;text-align:left}';
+    document.head.appendChild(st);
+    // ---------- الإعدادات: مفتاح Gemini ----------
+    function settingsBox() {
+        const ai = $g('set-ai'); const lab = ai && ai.closest('label'); if (!lab || $g('gem-box')) return;
+        const d = document.createElement('div'); d.id = 'gem-box'; d.className = 'mb-4 p-3 rounded-xl bg-violet-50 border border-violet-200 text-sm font-bold';
+        d.innerHTML = '<div>🧠 الذكاء الاصطناعي للمساعد (Gemini من جوجل، مجاني)</div>'
+            + '<div class="text-xs text-slate-600 mt-1 font-semibold">يسمع صوتك مباشرة ويفهم العراقي والكردي وينفّذ أي شي بالنظام. اصنع مفتاح مجاني من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-violet-700 underline">aistudio.google.com/apikey</a> والصقه هنا مرة وحدة — يشتغل على كل الأجهزة.</div>'
+            + '<div class="flex gap-2 mt-2"><input id="gem-key" type="password" autocomplete="off" placeholder="الصق المفتاح هنا (AIza...)" class="flex-1 p-2 border border-violet-300 rounded-lg text-sm"><button type="button" id="gem-save" class="px-3 py-2 bg-violet-600 text-white text-xs font-bold rounded-lg">حفظ</button></div>'
+            + '<div id="gem-st" class="text-xs mt-1"></div><button type="button" id="gem-del" class="mt-1 text-xs text-red-600 font-bold">حذف المفتاح</button>';
+        lab.parentElement.insertBefore(d, lab.nextSibling);
+        const stl = (t, ok) => { const s = $g('gem-st'); s.textContent = t; s.className = 'text-xs mt-1 ' + (ok ? 'text-emerald-700' : 'text-red-600'); };
+        loadKey().then(k => { if (k) stl('مفعّل ✓ (' + k.slice(0, 6) + '…)', true); else { $g('gem-st').textContent = 'غير مفعّل — المساعد يشتغل بالطريقة العادية'; } });
+        $g('gem-save').onclick = async () => {
+            const k = $g('gem-key').value.trim(); if (!/^AIza[0-9A-Za-z_\-]{20,}$/.test(k)) { stl('المفتاح لازم يبدي بـ AIza', false); return; }
+            stl('أجرّب المفتاح...', true); const old = KEY; KEY = k; MODEL = ''; LS.del('alwa_gem_model');
+            try { await pickModel(); const r = await ask([{ text: 'گول تمام بس' }]); if (!r) throw 0; await cfg().set({ k, upd: Date.now() }); LS.set('alwa_gem_key', k); $g('gem-key').value = ''; stl('مفعّل ✓ — اشتغل على كل الأجهزة (' + MODEL + ')', true); try { ai2Snd('ok'); } catch (e) {} }
+            catch (e) { KEY = old; stl(String(e && e.message) === 'badkey' ? 'المفتاح غلط أو ما مفعّل' : 'ما گدرت أتحقق (النت؟): ' + String(e && e.message || e).slice(0, 60), false); }
+        };
+        $g('gem-del').onclick = () => { try { confirmBox('تحذف مفتاح الذكاء من كل الأجهزة؟', async () => { try { await cfg().delete(); } catch (e) {} KEY = ''; LS.del('alwa_gem_key'); stl('انحذف. المساعد رجع عادي.', false); }, null, 'نعم، احذف', 'لا'); } catch (e) {} };
+    }
+    // يحدّث المفتاح من السحابة (إذا انضاف من جهاز ثاني)
+    let watching = false;
+    setInterval(() => {
+        settingsBox();
+        try { if (!watching && window.firebase && firebase.apps.length && firebase.auth().currentUser) { watching = true; cfg().onSnapshot(d => { const k = d.exists ? (d.data().k || '') : ''; if (k !== KEY) { KEY = k; if (k) LS.set('alwa_gem_key', k); else LS.del('alwa_gem_key'); MODEL = ''; LS.del('alwa_gem_model'); } }, () => { watching = false; }); } } catch (e) {}
+    }, 2000);
+})();
+</script>
 </body></html>
