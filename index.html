@@ -6684,7 +6684,7 @@ function aiParseBtn(auto) {
     if (plan.print) h += '<div class="mt-1 p-2 rounded-lg bg-violet-50 border border-violet-200 font-bold">🖨️ إخراج الوصلة</div>';
     const ok = plan.buyer || plan.newCart || plan.clear || plan.recv || plan.print || plan.items.some(i => i.p) || plan.remove.some(i => i.p);
     if (!ok) h = '<div class="text-red-600 font-bold text-sm">ما فهمت. جرب: «عند احمد طماطه 20 كيلو بسعر 1500 خيار 10 كيلو بالف، الواصل 30 الف، اطبع الوصل»</div>';
-    box.innerHTML = h; $('ai-go').classList.toggle('hidden', !ok);
+    box.innerHTML = h; $('ai-go').classList.toggle('hidden', !ok); if (auto && !ok) ai2Snd('err');
     const allGood = ok && !plan.items.some(i => !i.p) && !plan.remove.some(i => !i.p);
     if (auto && allGood && ai2AutoOn()) {
         _ai2Timer = setTimeout(() => { _ai2Timer = null; aiRun(); }, 200); // ينفّذ فوراً
@@ -6719,7 +6719,7 @@ function aiRun() {
     if (plan.recv) { try { const f = $('inv-recv'); f.value = plan.recv; f.dispatchEvent(new Event('input', { bubbles: true })); persistCarts(); } catch (e) {} }
     $('modal-ai').classList.add('hidden'); $('ai-txt').value = ''; $('ai-prev').innerHTML = ''; $('ai-go').classList.add('hidden');
     const msg = 'تم' + (plan.buyer ? ': ' + plan.buyer : '') + (n ? ' — ' + n + ' مادة' : '') + (r ? ' — شلت ' + r : '') + (plan.recv ? ' — الواصل ' + fmt(plan.recv) : '');
-    showToast(msg); ai2Say(msg.replace(/—/g, '،'));
+    ai2Snd('ok'); showToast(msg); ai2Say(msg.replace(/—/g, '،'));
     if (plan.print) setTimeout(() => { try { processAndPrintInvoice(); } catch (e) {} }, 350);
 }
 let _ai2Rec = null;
@@ -6771,18 +6771,34 @@ function aiMic() {
     go('ar-IQ');
 }
 
+// ---------- أصوات المساعد ----------
+function ai2Snd(kind) {
+    try {
+        if (localStorage.getItem('alwa_ai_snd') === '0') return;
+        const A = window._aiAC || (window._aiAC = new (window.AudioContext || window.webkitAudioContext)());
+        if (A.state === 'suspended') A.resume();
+        const t = A.currentTime;
+        const tone = (f1, f2, at, dur, vol, type) => { const o = A.createOscillator(), g = A.createGain(); o.type = type || 'sine'; o.frequency.setValueAtTime(f1, t + at); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + at + dur * .8); g.gain.setValueAtTime(.0001, t + at); g.gain.exponentialRampToValueAtTime(vol, t + at + .015); g.gain.exponentialRampToValueAtTime(.0001, t + at + dur); o.connect(g).connect(A.destination); o.start(t + at); o.stop(t + at + dur + .02); };
+        if (kind === 'tick') { tone(1800, 900, 0, .06, .25, 'triangle'); }
+        else if (kind === 'start') { tone(620, 0, 0, .12, .22); tone(930, 0, .1, .18, .24); }
+        else if (kind === 'ok') { tone(784, 0, 0, .22, .18); tone(988, 0, .07, .22, .16); tone(1319, 0, .14, .35, .18); }
+        else if (kind === 'err') { tone(300, 200, 0, .28, .22, 'triangle'); }
+    } catch (e) {}
+}
+['pointerup', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, function unlock() { try { const A = window._aiAC || (window._aiAC = new (window.AudioContext || window.webkitAudioContext)()); if (A.state === 'suspended') A.resume(); } catch (e) {} }, { once: true, capture: true }));
+
 // ---------- ضغط مطوّل على زر المساعد = تكلم مباشرة ----------
 (function () {
     let t0 = 0, hold = null, fired = false;
     const fab = () => document.getElementById('ai-fab');
     const isFab = e => e.target && e.target.closest && e.target.closest('#ai-fab');
-    document.addEventListener('pointerdown', e => { if (!isFab(e)) return; fired = false; t0 = Date.now(); clearTimeout(hold); hold = setTimeout(() => { const f = fab(); if (f) { f.style.transform = 'scale(1.18)'; f.style.boxShadow = '0 0 0 8px rgba(124,58,237,.3)'; } try { navigator.vibrate && navigator.vibrate(30); } catch (x) {} }, 380); }, true);
+    document.addEventListener('pointerdown', e => { if (!isFab(e)) return; fired = false; t0 = Date.now(); clearTimeout(hold); hold = setTimeout(() => { const f = fab(); if (f) { f.style.transform = 'scale(1.18)'; f.style.boxShadow = '0 0 0 8px rgba(124,58,237,.3)'; } ai2Snd('tick'); try { navigator.vibrate && navigator.vibrate(30); } catch (x) {} }, 380); }, true);
     const reset = () => { clearTimeout(hold); const f = fab(); if (f) { f.style.transform = ''; f.style.boxShadow = '0 4px 12px rgba(0,0,0,.3)'; } };
     document.addEventListener('pointerup', e => {
         if (!isFab(e)) { reset(); return; }
         const long = Date.now() - t0 >= 380; reset();
         if (!long) return;
-        fired = true; // داخل نفس اللمسة حتى الآيفون يسمح بالمايك
+        fired = true; ai2Snd('start'); // داخل نفس اللمسة حتى الآيفون يسمح بالمايك
         try { aiOpen(); aiMic(); } catch (x) {}
     }, true);
     document.addEventListener('pointercancel', reset, true);
