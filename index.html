@@ -6792,10 +6792,11 @@ function ai2Snd(kind) {
     let t0 = 0, hold = null, fired = false;
     const fab = () => document.getElementById('ai-fab');
     const isFab = e => e.target && e.target.closest && e.target.closest('#ai-fab');
-    document.addEventListener('pointerdown', e => { if (!isFab(e)) return; fired = false; t0 = Date.now(); clearTimeout(hold); hold = setTimeout(() => { const f = fab(); if (f) { f.style.transform = 'scale(1.18)'; f.style.boxShadow = '0 0 0 8px rgba(124,58,237,.3)'; } ai2Snd('tick'); try { navigator.vibrate && navigator.vibrate(30); } catch (x) {} }, 380); }, true);
+    document.addEventListener('pointerdown', e => { if (!isFab(e)) return; fired = false; t0 = Date.now(); clearTimeout(hold); hold = setTimeout(() => { if (window._ntDragged) return; const f = fab(); if (f) { f.style.transform = 'scale(1.18)'; f.style.boxShadow = '0 0 0 8px rgba(124,58,237,.3)'; } ai2Snd('tick'); try { navigator.vibrate && navigator.vibrate(30); } catch (x) {} }, 380); }, true);
     const reset = () => { clearTimeout(hold); const f = fab(); if (f) { f.style.transform = ''; f.style.boxShadow = '0 4px 12px rgba(0,0,0,.3)'; } };
     document.addEventListener('pointerup', e => {
         if (!isFab(e)) { reset(); return; }
+        if (window._ntDragged) { reset(); fired = true; return; } // كان سحب، مو تكلم
         const long = Date.now() - t0 >= 380; reset();
         if (!long) return;
         fired = true; ai2Snd('start'); // داخل نفس اللمسة حتى الآيفون يسمح بالمايك
@@ -7266,6 +7267,11 @@ html.nt #grandtotal-display{display:inline-block}
     const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
     let dev = LS.get('alwa_chat_dev'); if (!dev) { dev = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); LS.set('alwa_chat_dev', dev); }
     const myName = () => LS.get('alwa_chat_name') || '';
+    const isMine = m => m.d === dev || (!!myName() && (m.n || '').trim() === myName().trim());
+    const rk = () => (myName() || dev).trim();
+    const ttlOpts = [[3600e3, 'ساعة'], [6 * 3600e3, '6 ساعات'], [864e5, 'يوم'], [7 * 864e5, 'أسبوع'], [30 * 864e5, 'شهر'], [0, 'أبداً']];
+    let TTL = Number(LS.get('alwa_chat_ttl') || 0), vrec = null; const vcache = {}; let vplay = null;
+    const ttlName = () => (ttlOpts.find(o => o[0] === TTL) || [0, 'أبداً'])[1];
     const acct = () => { try { const e = firebase.auth().currentUser.email; return e.split('@')[0]; } catch (e) { return ''; } };
     const REACTS = ['👍', '❤️', '😂', '😮', '🙏', '✅', '🔥'];
     const QUICK = ['👍', '🙏', '✅', '❤️', '😂', '🔥', '👌', '⏳', '🍅', '🥒', '🚚', '💰'];
@@ -7338,7 +7344,31 @@ html.nt #grandtotal-display{display:inline-block}
 @keyframes chRing{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(5deg)}}
 #ch-fab.ring svg{animation:chRing .8s ease-in-out}
 @media (prefers-reduced-motion:reduce){.ch-m,.ch-rx span,#ch-react,#ch-tray.open{animation:none}#ch-panel{transition:none}}
-html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b2638;color:#e2e8f0;border-color:#2a3a52}html.dark #ch-bar,html.dark #ch-tray{background:#141f2c;border-color:#2a3a52}html.dark #ch-in{background:#0f1a24;color:#e2e8f0;border-color:#2a3a52}html.dark .ch-day{background:#1b2638;color:#94a3b8}`;
+html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b2638;color:#e2e8f0;border-color:#2a3a52}html.dark #ch-bar,html.dark #ch-tray{background:#141f2c;border-color:#2a3a52}html.dark #ch-in{background:#0f1a24;color:#e2e8f0;border-color:#2a3a52}html.dark .ch-day{background:#1b2638;color:#94a3b8}
+#ch-ttl{margin-inline-start:auto;width:auto!important;padding:0 10px;border-radius:999px!important;display:flex;align-items:center;gap:4px;font:800 12px Readex Pro,Cairo,sans-serif}#ch-ttl svg{width:18px;height:18px}#ch-ttl+#ch-x{margin-inline-start:6px}
+#ch-ttlm{position:absolute;top:64px;left:12px;z-index:6;display:none;flex-direction:column;gap:4px;background:#fff;border-radius:16px;padding:10px;box-shadow:0 14px 34px -10px rgba(0,0,0,.45);min-width:190px;animation:chPop .2s ease-out}
+#ch-ttlm.open{display:flex}#ch-ttlm b{font:800 12px Readex Pro,Cairo,sans-serif;color:#475569;margin-bottom:2px}
+#ch-ttlm button{text-align:start;padding:9px 12px;border-radius:10px;font:700 14px Readex Pro,Cairo,sans-serif;color:#0f2a1d}#ch-ttlm button:hover{background:#f0fdf4}#ch-ttlm button.on{background:#059669;color:#fff}
+#ch-mic{background:#ecfdf5;color:#047857}
+#ch-rec{position:absolute;left:0;right:0;bottom:0;z-index:4;display:none;align-items:center;gap:10px;padding:12px 12px calc(12px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #e2ebe5}
+#ch-rec.open{display:flex;animation:chUp .2s ease-out}
+#ch-rc{padding:0 14px;height:44px;border-radius:22px;background:#fee2e2;color:#b91c1c;font:800 14px Readex Pro,Cairo,sans-serif}
+#ch-rs{margin-inline-start:auto;padding:0 20px;height:44px;border-radius:22px;color:#fff;font:800 15px Readex Pro,Cairo,sans-serif;background:linear-gradient(135deg,#10b981,#047857)}
+.ch-rdot{width:12px;height:12px;border-radius:50%;background:#ef4444;animation:chBl 1s infinite}
+#ch-vt{font:800 16px Readex Pro,Cairo,sans-serif;color:#0f2a1d;min-width:42px}
+.ch-rw{display:flex;align-items:center;gap:3px;height:24px}.ch-rw i{width:4px;height:100%;border-radius:4px;background:#10b981;animation:chWv .9s ease-in-out infinite}
+.ch-rw i:nth-child(2){animation-delay:.1s}.ch-rw i:nth-child(3){animation-delay:.2s}.ch-rw i:nth-child(4){animation-delay:.3s}.ch-rw i:nth-child(5){animation-delay:.4s}
+.ch-b.vb{display:flex;align-items:center;gap:8px;min-width:200px;padding:8px 10px}
+.ch-vp{width:38px;height:38px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.25);cursor:pointer}
+.ch-m.ot .ch-vp{background:#059669}
+.ch-pl{width:0;height:0;border-style:solid;border-width:8px 13px 8px 0;border-color:transparent #fff transparent transparent;margin-inline-start:3px}
+.ch-vp.on .ch-pl{width:12px;height:14px;border:0;border-inline:4px solid #fff;margin:0}
+.ch-vp.ld .ch-pl{width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;margin:0;animation:ntSpin .8s linear infinite}
+.ch-vw{display:flex;align-items:center;gap:2px;flex:1}.ch-vw i{width:3px;border-radius:3px;background:currentColor;opacity:.55}
+.ch-vp.on+.ch-vw i{animation:chWv 1s ease-in-out infinite;opacity:.9}.ch-vp.on+.ch-vw i:nth-child(odd){animation-delay:.25s}
+.ch-vd{font:700 12px Readex Pro,Cairo,sans-serif;opacity:.85}
+@keyframes chBl{50%{opacity:.25}}@keyframes chWv{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}@keyframes ntSpin{to{transform:rotate(360deg)}}
+html.dark #ch-ttlm,html.dark #ch-rec{background:#141f2c}html.dark #ch-ttlm button{color:#e2e8f0}html.dark #ch-vt{color:#e2e8f0}`;
     let msgs = [], open = false, unsub = null, reactFor = null;
     const lastSeen = () => Number(LS.get('alwa_chat_seen') || 0);
     const build = () => {
@@ -7347,11 +7377,13 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
         const fab = document.createElement('button'); fab.id = 'ch-fab'; fab.type = 'button'; fab.className = 'no-print'; fab.title = 'الرسائل'; fab.innerHTML = CHAT_ICON + '<span id="ch-badge"></span>'; fab.onclick = () => toggle(true);
         const dim = document.createElement('div'); dim.id = 'ch-dim'; dim.className = 'no-print'; dim.onclick = () => toggle(false);
         const p = document.createElement('div'); p.id = 'ch-panel'; p.className = 'no-print nt-skip';
-        p.innerHTML = '<div id="ch-head"><div class="ch-av">' + CHAT_ICON + '</div><div><b>رسائل العلوة</b><small id="ch-sub"></small></div><button type="button" id="ch-x">✕</button></div>'
+        p.innerHTML = '<div id="ch-head"><div class="ch-av">' + CHAT_ICON + '</div><div><b>رسائل العلوة</b><small id="ch-sub"></small></div><button type="button" id="ch-ttl" title="مدة حذف الرسائل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span id="ch-ttl-l"></span></button><button type="button" id="ch-x">✕</button></div><div id="ch-ttlm"><b>الرسائل تنحذف تلقائياً بعد:</b>' + ttlOpts.map(o => '<button type="button" data-ttl="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>'
             + '<div id="ch-list"></div><div id="ch-tray"><div class="q"></div><div class="s"></div></div>'
             + '<div id="ch-bar"><button type="button" class="ib" id="ch-emo" title="ستيكر وإيموجي"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></svg></button>'
             + '<textarea id="ch-in" rows="1" placeholder="اكتب رسالة..." enterkeyhint="send"></textarea>'
+            + '<button type="button" class="ib" id="ch-mic" title="فويس"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg></button>'
             + '<button type="button" class="ib" id="ch-send" title="إرسال"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:scaleX(-1)"><path d="M21.5 2.5l-9.2 19-2.6-8.2-8.2-2.6z"/><path d="M21.5 2.5L9.7 13.3"/></svg></button></div>'
+            + '<div id="ch-rec"><button type="button" id="ch-rc">إلغاء</button><span class="ch-rdot"></span><span id="ch-vt">0:00</span><span class="ch-rw"><i></i><i></i><i></i><i></i><i></i></span><button type="button" id="ch-rs">إرسال</button></div>'
             + '<div id="ch-name"><h4>شنو اسمك؟</h4><p>حتى يعرفون منو كاتب الرسالة. ينحفظ على هذا الجهاز بس.</p><input id="ch-name-in" maxlength="20" placeholder="مثلاً: زيرك"><button type="button" id="ch-name-ok">ابدأ</button></div>';
         const rb = document.createElement('div'); rb.id = 'ch-react'; rb.className = 'no-print nt-skip';
         rb.innerHTML = REACTS.map(e => '<button type="button" data-e="' + e + '">' + e + '</button>').join('') + '<button type="button" class="del" data-del="1">حذف</button>';
@@ -7361,6 +7393,10 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
         $c('ch-in').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !/Android|iPhone|iPad/.test(navigator.userAgent)) { e.preventDefault(); $c('ch-send').click(); } });
         $c('ch-in').addEventListener('input', e => { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(120, t.scrollHeight) + 'px'; });
         $c('ch-emo').onclick = () => $c('ch-tray').classList.toggle('open');
+        $c('ch-mic').onclick = () => vStart(); $c('ch-rc').onclick = () => vStop(true); $c('ch-rs').onclick = () => vStop(false);
+        $c('ch-ttl').onclick = e => { e.stopPropagation(); $c('ch-ttlm').classList.toggle('open'); [...$c('ch-ttlm').querySelectorAll('[data-ttl]')].forEach(b => b.classList.toggle('on', Number(b.dataset.ttl) === TTL)); };
+        $c('ch-ttlm').onclick = e => { const b = e.target.closest('[data-ttl]'); if (!b) return; const v = Number(b.dataset.ttl); $c('ch-ttlm').classList.remove('open'); ccfg().set({ ttl: v, upd: Date.now() }, { merge: true }).then(() => { try { showToast(v ? 'الرسائل تنحذف بعد ' + (ttlOpts.find(o => o[0] === v) || [0, ''])[1] : 'الرسائل ما تنحذف'); } catch (x) {} }).catch(() => {}); };
+        document.addEventListener('pointerdown', e => { if (!e.target.closest('#ch-ttlm') && !e.target.closest('#ch-ttl')) $c('ch-ttlm').classList.remove('open'); }, true);
         $c('ch-tray').querySelector('.q').innerHTML = QUICK.map(e => '<button type="button" data-q="' + e + '">' + e + '</button>').join('');
         $c('ch-tray').querySelector('.s').innerHTML = STK.map(s => '<button type="button" data-s="' + s[0] + '">' + sticker(s[0]) + '</button>').join('');
         $c('ch-tray').onclick = e => { const q = e.target.closest('[data-q]'), s = e.target.closest('[data-s]'); if (q) { const i = $c('ch-in'); i.value += q.dataset.q; i.focus(); } if (s) { send({ s: s.dataset.s }); $c('ch-tray').classList.remove('open'); } };
@@ -7368,10 +7404,11 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
         $c('ch-name-in').addEventListener('keydown', e => { if (e.key === 'Enter') $c('ch-name-ok').click(); });
         // تفاعل: ضغطة على الرسالة
         $c('ch-list').addEventListener('click', e => {
+            const vp = e.target.closest('.ch-vp'); if (vp) { vPlay(vp); e.stopPropagation(); return; }
             const b = e.target.closest('.ch-b'); if (!b) return;
             const m = msgs.find(x => x.id === b.dataset.id); if (!m) return;
             reactFor = m; const r = b.getBoundingClientRect(), box = $c('ch-react');
-            box.querySelector('.del').style.display = m.d === dev ? '' : 'none';
+            box.querySelector('.del').style.display = isMine(m) ? '' : 'none';
             box.style.display = 'flex'; const w = box.offsetWidth;
             box.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
             box.style.top = Math.max(8, r.top - 58) + 'px';
@@ -7379,20 +7416,62 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
         });
         rb.onclick = e => {
             const x = e.target.closest('button'); if (!x || !reactFor) return;
-            if (x.dataset.del) { const id = reactFor.id; try { confirmBox('تحذف هذه الرسالة؟', () => col().doc(id).delete().catch(() => {}), null, 'نعم، احذف', 'لا'); } catch (er) { col().doc(id).delete().catch(() => {}); } }
-            else { const cur = (reactFor.r || {})[dev]; col().doc(reactFor.id).set({ r: { [dev]: cur === x.dataset.e ? firebase.firestore.FieldValue.delete() : x.dataset.e } }, { merge: true }).catch(() => {}); }
+            if (x.dataset.del) { const id = reactFor.id, v = reactFor.v; const go = () => { col().doc(id).delete().catch(() => {}); if (v && v.id) vcol().doc(v.id).delete().catch(() => {}); }; try { confirmBox('تحذف هذه الرسالة؟', go, null, 'نعم، احذف', 'لا'); } catch (er) { go(); } }
+            else { const cur = (reactFor.r || {})[rk()]; col().doc(reactFor.id).set({ r: { [rk()]: cur === x.dataset.e ? firebase.firestore.FieldValue.delete() : x.dataset.e } }, { merge: true }).catch(() => {}); }
             rb.style.display = 'none'; reactFor = null;
         };
         document.addEventListener('pointerdown', e => { if (!e.target.closest('#ch-react') && !e.target.closest('.ch-b')) { rb.style.display = 'none'; } }, true);
         $c('ch-list').addEventListener('scroll', () => { rb.style.display = 'none'; }, { passive: true });
         setSub();
     };
-    const setSub = () => { const s = $c('ch-sub'); if (s) s.textContent = myName() ? 'انت: ' + myName() + ' · الرسائل توصل لكل الأجهزة' : 'الرسائل توصل لكل الأجهزة'; };
+    const setSub = () => { const s = $c('ch-sub'); if (s) s.textContent = (myName() ? 'انت: ' + myName() + ' · ' : '') + (TTL ? 'تنحذف بعد ' + ttlName() : 'ما تنحذف'); const b = $c('ch-ttl-l'); if (b) b.textContent = TTL ? ttlName() : '∞'; };
+    const vcol = () => firebase.firestore().collection('chatv');
+    const ccfg = () => firebase.firestore().collection('cfg').doc('chat');
+    const cleanup = () => {
+        if (!TTL) return; const cut = Date.now() - TTL;
+        try { col().where('ts', '<', cut).limit(150).get().then(s => s.forEach(d => { const v = d.data().v; d.ref.delete().catch(() => {}); if (v && v.id) vcol().doc(v.id).delete().catch(() => {}); })).catch(() => {}); } catch (e) {}
+        try { vcol().where('ts', '<', cut).limit(150).get().then(s => s.forEach(d => d.ref.delete().catch(() => {}))).catch(() => {}); } catch (e) {}
+    };
+    const vbubble = v => '<span class="ch-vp" data-v="' + esc2(v.id) + '" data-mt="' + esc2(v.mt || '') + '"><i class="ch-pl"></i></span><span class="ch-vw">' + Array.from({ length: 18 }, (_, i) => '<i style="height:' + (6 + ((i * 53 + (v.dur || 1) * 7) % 17)) + 'px"></i>').join('') + '</span><span class="ch-vd">' + Math.floor((v.dur || 0) / 60) + ':' + String((v.dur || 0) % 60).padStart(2, '0') + '</span>';
+    async function vPlay(el) {
+        const id = el.dataset.v; if (vplay && vplay.id === id) { vplay.a.pause(); vplay.el.classList.remove('on'); vplay = null; return; }
+        if (vplay) { vplay.a.pause(); vplay.el.classList.remove('on'); vplay = null; }
+        el.classList.add('ld');
+        try {
+            if (!vcache[id]) { const d = await vcol().doc(id).get(); if (!d.exists) throw new Error('gone'); vcache[id] = d.data().d; }
+            const a = new Audio(vcache[id]); vplay = { id, a, el }; el.classList.remove('ld'); el.classList.add('on');
+            a.onended = () => { el.classList.remove('on'); if (vplay && vplay.id === id) vplay = null; };
+            await a.play();
+        } catch (e) { el.classList.remove('ld', 'on'); vplay = null; try { showToast(String(e && e.message) === 'gone' ? 'هذا الفويس انحذف' : 'ما يشتغل هذا الفويس على هذا الجهاز', true); } catch (x) {} }
+    }
+    async function vStart() {
+        if (!myName()) { $c('ch-name').classList.add('open'); return; }
+        if (vrec) return;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+            const mt = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+            if (!mt) { stream.getTracks().forEach(t => t.stop()); throw new Error('nomr'); }
+            const mr = new MediaRecorder(stream, { mimeType: mt, audioBitsPerSecond: 32000 }), parts = [];
+            mr.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+            vrec = { mr, stream, parts, mt, t0: Date.now(), cancel: false, timer: setInterval(vTick, 250) };
+            mr.onstop = vDone; mr.start(250); $c('ch-rec').classList.add('open'); vTick();
+        } catch (e) { try { showToast(String(e && e.message) === 'nomr' ? 'هذا المتصفح ما يدعم تسجيل الفويس' : 'اسمح للمايك حتى تسجّل فويس', true); } catch (x) {} }
+    }
+    function vStop(cancel) { if (!vrec) return; vrec.cancel = !!cancel; clearInterval(vrec.timer); try { vrec.mr.stop(); } catch (e) {} vrec.stream.getTracks().forEach(t => t.stop()); $c('ch-rec').classList.remove('open'); }
+    function vTick() { if (!vrec) return; const s = Math.floor((Date.now() - vrec.t0) / 1000); $c('ch-vt').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); if (s >= 90) vStop(false); }
+    async function vDone() {
+        const r = vrec; vrec = null; if (!r || r.cancel) return;
+        const dur = Math.max(1, Math.round((Date.now() - r.t0) / 1000)); if (Date.now() - r.t0 < 700) return;
+        const blob = new Blob(r.parts, { type: r.mt.split(';')[0] }); if (blob.size > 720000) { try { showToast('الفويس طويل، خليه أقصر', true); } catch (e) {} return; }
+        const data = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
+        const vid = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        try { await vcol().doc(vid).set({ d: data, ts: Date.now() }); send({ v: { id: vid, dur, mt: r.mt.split(';')[0] } }); } catch (e) { try { showToast('تعذّر إرسال الفويس', true); } catch (x) {} }
+    }
     const col = () => firebase.firestore().collection('chat');
     const send = o => {
         if (!myName()) { $c('ch-name').classList.add('open'); return; }
-        const t = (o.t || '').trim(); if (!t && !o.s) return;
-        const doc = { n: myName(), u: acct(), d: dev, ts: Date.now() }; if (t) doc.t = t.slice(0, 1000); if (o.s) doc.s = o.s;
+        const t = (o.t || '').trim(); if (!t && !o.s && !o.v) return;
+        const doc = { n: myName(), u: acct(), d: dev, ts: Date.now() }; if (t) doc.t = t.slice(0, 1000); if (o.s) doc.s = o.s; if (o.v) doc.v = o.v;
         col().add(doc).catch(() => { try { showToast('تعذّر الإرسال، تأكد من النت', true); } catch (e) {} });
         if (t) { $c('ch-in').value = ''; $c('ch-in').style.height = 'auto'; }
     };
@@ -7400,12 +7479,13 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
     const render = () => {
         const L = $c('ch-list'); if (!L) return;
         const nearBottom = L.scrollHeight - L.scrollTop - L.clientHeight < 120;
-        if (!msgs.length) { L.innerHTML = '<div class="ch-empty">ما اكو رسائل بعد.<br>اكتب أول رسالة 👋</div>'; return; }
+        const cut = TTL ? Date.now() - TTL : 0, list = msgs.filter(m => m.ts >= cut);
+        if (!list.length) { L.innerHTML = '<div class="ch-empty">ما اكو رسائل بعد.<br>اكتب أول رسالة 👋' + (TTL ? '<br><small>الرسائل تنحذف تلقائياً بعد ' + ttlName() + '</small>' : '') + '</div>'; return; }
         let h = '', lastDay = '';
-        msgs.forEach(m => {
+        list.forEach(m => {
             const day = new Date(m.ts).toDateString(); if (day !== lastDay) { lastDay = day; const d = new Date(m.ts), today = new Date().toDateString() === day; h += '<div class="ch-day">' + (today ? 'اليوم' : d.toLocaleDateString('ar-IQ', { weekday: 'long', day: 'numeric', month: 'long' })) + '</div>'; }
-            const me = m.d === dev, cls = m.s ? ' stk' : (m.t && onlyEmoji(m.t) ? ' big' : '');
-            const body = m.s ? sticker(m.s) : esc2(m.t);
+            const me = isMine(m), cls = m.s ? ' stk' : (m.v ? ' vb' : (m.t && onlyEmoji(m.t) ? ' big' : ''));
+            const body = m.s ? sticker(m.s) : (m.v ? vbubble(m.v) : esc2(m.t));
             const rx = {}; Object.values(m.r || {}).forEach(e => { rx[e] = (rx[e] || 0) + 1; });
             const rxh = Object.keys(rx).length ? '<div class="ch-rx">' + Object.entries(rx).map(([e, n]) => '<span>' + e + (n > 1 ? '<b>' + n + '</b>' : '') + '</span>').join('') + '</div>' : '';
             h += '<div class="ch-m ' + (me ? 'me' : 'ot') + '">' + (me ? '' : '<div class="ch-n">' + esc2(m.n || m.u || '؟') + '</div>') + '<div class="ch-b' + cls + '" data-id="' + m.id + '">' + body + '</div>' + rxh + '<div class="ch-t">' + tm(m.ts) + '</div></div>';
@@ -7415,7 +7495,7 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
     };
     const beep = () => { try { const A = window._chAC || (window._chAC = new (window.AudioContext || window.webkitAudioContext)()); const o = A.createOscillator(), g = A.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(880, A.currentTime); o.frequency.exponentialRampToValueAtTime(1320, A.currentTime + .12); g.gain.setValueAtTime(.0001, A.currentTime); g.gain.exponentialRampToValueAtTime(.18, A.currentTime + .02); g.gain.exponentialRampToValueAtTime(.0001, A.currentTime + .35); o.connect(g).connect(A.destination); o.start(); o.stop(A.currentTime + .36); } catch (e) {} };
     const badge = () => {
-        const n = msgs.filter(m => m.d !== dev && m.ts > lastSeen()).length, b = $c('ch-badge'); if (!b) return;
+        const n = msgs.filter(m => !isMine(m) && m.ts > lastSeen()).length, b = $c('ch-badge'); if (!b) return;
         b.textContent = n > 99 ? '99+' : n; b.style.display = n && !open ? 'block' : 'none';
     };
     const toggle = v => {
@@ -7427,14 +7507,15 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
     let firstSnap = true;
     const listen = () => {
         if (unsub || !window.firebase || !firebase.apps || !firebase.apps.length) return;
+        try { ccfg().onSnapshot(d => { TTL = Number((d.exists && d.data().ttl) || 0); LS.set('alwa_chat_ttl', String(TTL)); setSub(); render(); cleanup(); }, () => {}); setInterval(cleanup, 10 * 60e3); } catch (e) {}
         try {
             unsub = col().orderBy('ts', 'desc').limit(120).onSnapshot(snap => {
                 const prev = new Set(msgs.map(m => m.id));
                 msgs = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
-                const fresh = msgs.filter(m => !prev.has(m.id) && m.d !== dev && m.ts > lastSeen());
+                const fresh = msgs.filter(m => !prev.has(m.id) && !isMine(m) && m.ts > lastSeen());
                 if (!firstSnap && fresh.length) {
                     if (open) LS.set('alwa_chat_seen', String(Date.now()));
-                    else { const f = fresh[fresh.length - 1]; beep(); try { navigator.vibrate && navigator.vibrate(60); } catch (e) {} const fb = $c('ch-fab'); fb.classList.remove('ring'); void fb.offsetWidth; fb.classList.add('ring'); try { showToast('رسالة من ' + (f.n || f.u) + ': ' + (f.s ? 'ستيكر' : String(f.t).slice(0, 40))); } catch (e) {} }
+                    else { const f = fresh[fresh.length - 1]; beep(); try { navigator.vibrate && navigator.vibrate(60); } catch (e) {} const fb = $c('ch-fab'); fb.classList.remove('ring'); void fb.offsetWidth; fb.classList.add('ring'); try { showToast('رسالة من ' + (f.n || f.u) + ': ' + (f.s ? 'ستيكر' : (f.v ? '🎤 فويس' : String(f.t).slice(0, 40)))); } catch (e) {} }
                 }
                 firstSnap = false; render(); badge();
             }, () => {});
@@ -7449,6 +7530,24 @@ html.dark #ch-panel{background:#0f1a24}html.dark .ch-m.ot .ch-b{background:#1b26
     };
     const start = () => { tick(); setInterval(tick, 1500); };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+// ---------- سحب الأزرار العائمة لأي مكان ----------
+(function fabDrag() {
+    const SEL = '#ch-fab,#ai-fab'; let st = null;
+    const place = (el, x, y) => { const w = el.offsetWidth || 50, h = el.offsetHeight || 50; x = Math.max(4, Math.min(innerWidth - w - 4, x)); y = Math.max(4, Math.min(innerHeight - h - 4, y)); el.style.setProperty('left', x + 'px', 'important'); el.style.setProperty('top', y + 'px', 'important'); el.style.setProperty('bottom', 'auto', 'important'); el.style.setProperty('right', 'auto', 'important'); return { x, y }; };
+    const load = el => { try { const p = JSON.parse(localStorage.getItem('alwa_pos_' + el.id) || 'null'); if (p) place(el, p.x, p.y); } catch (e) {} };
+    document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest(SEL); if (!el) return; const r = el.getBoundingClientRect(); st = { el, sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top, drag: false, id: e.pointerId }; window._ntDragged = false; }, true);
+    document.addEventListener('pointermove', e => {
+        if (!st) return; const dx = e.clientX - st.sx, dy = e.clientY - st.sy;
+        if (!st.drag && Math.hypot(dx, dy) > 10) { st.drag = true; window._ntDragged = true; st.el.classList.add('fab-drag'); try { st.el.setPointerCapture(st.id); } catch (x) {} }
+        if (st.drag) { e.preventDefault(); st.pos = place(st.el, st.ox + dx, st.oy + dy); }
+    }, { capture: true, passive: false });
+    const end = () => { if (!st) return; if (st.drag) { st.el.classList.remove('fab-drag'); if (st.pos) { try { localStorage.setItem('alwa_pos_' + st.el.id, JSON.stringify(st.pos)); } catch (e) {} } setTimeout(() => { window._ntDragged = false; }, 350); } st = null; };
+    document.addEventListener('pointerup', end, true); document.addEventListener('pointercancel', end, true);
+    document.addEventListener('click', e => { if (window._ntDragged && e.target.closest && e.target.closest(SEL)) { e.stopPropagation(); e.preventDefault(); } }, true);
+    const s = document.createElement('style'); s.textContent = '.fab-drag{transform:scale(1.15)!important;box-shadow:0 18px 34px rgba(0,0,0,.38)!important;transition:none!important;cursor:grabbing}#ch-fab,#ai-fab{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}'; document.head.appendChild(s);
+    setInterval(() => { document.querySelectorAll(SEL).forEach(el => { if (!el._pos) { el._pos = 1; load(el); } }); }, 1000);
+    addEventListener('resize', () => document.querySelectorAll(SEL).forEach(el => { if (el.style.top) place(el, parseFloat(el.style.left), parseFloat(el.style.top)); }));
 })();
 </script>
 <script>
