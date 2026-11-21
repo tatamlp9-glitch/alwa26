@@ -6687,8 +6687,7 @@ function aiParseBtn(auto) {
     box.innerHTML = h; $('ai-go').classList.toggle('hidden', !ok);
     const allGood = ok && !plan.items.some(i => !i.p) && !plan.remove.some(i => !i.p);
     if (auto && allGood && ai2AutoOn()) {
-        let n = 3; const g = $('ai-go'); g.textContent = '✔ ينفّذ تلقائياً خلال ' + n + ' (اضغط للتنفيذ الآن)';
-        _ai2Timer = setInterval(() => { n--; if (n <= 0) { ai2StopTimer(); aiRun(); } else g.textContent = '✔ ينفّذ تلقائياً خلال ' + n + ' (اضغط للتنفيذ الآن)'; }, 1000);
+        _ai2Timer = setTimeout(() => { _ai2Timer = null; aiRun(); }, 200); // ينفّذ فوراً
     }
     return plan;
 }
@@ -6728,7 +6727,7 @@ function aiOpen() {
     $('modal-ai').classList.remove('hidden'); const t = $('ai-txt'); t.classList.remove('hidden'); t.value = ''; $('ai-prev').innerHTML = ''; $('ai-go').classList.add('hidden');
     t.oninput = () => aiParseBtn(false);
     try { const p = document.querySelector('#modal-ai p'); if (p && !p._ai2) { p._ai2 = 1; p.innerHTML = 'تكلم طبيعي، مثال: <b>عند احمد طماطه 20 كيلو بسعر 1500 وخيار 10 كيلو بالف، الواصل 30 الف، اطبع الوصل</b><br><span class="text-[11px]">يفهم: اسم المشتري، المواد (حتى بدون فواصل)، الكيلو/العدد/السعر، الأرقام بالكلام (الف وخمسميه، كيلو ونص)، «شيل خيار»، «الواصل…»، «مشتري جديد»، «اطبع الوصل».</span>'; } } catch (e) {}
-    try { const g = $('ai-go').parentElement; if (g && !$('ai-auto')) { const l = document.createElement('label'); l.className = 'flex items-center gap-2 text-xs font-bold text-slate-600 mt-2'; l.innerHTML = '<input id="ai-auto" type="checkbox" class="w-4 h-4"> نفّذ تلقائياً بعد ما أخلص كلام (إذا فهم كل شي)'; g.parentElement.insertBefore(l, g.nextSibling); $('ai-auto').checked = ai2AutoOn(); $('ai-auto').onchange = e => { try { localStorage.setItem('alwa_ai_auto', e.target.checked ? '1' : '0'); } catch (x) {} }; } } catch (e) {}
+    try { const g = $('ai-go').parentElement; if (g && !$('ai-auto')) { const l = document.createElement('label'); l.className = 'flex items-center gap-2 text-xs font-bold text-slate-600 mt-2'; l.innerHTML = '<input id="ai-auto" type="checkbox" class="w-4 h-4"> نفّذ فوراً أول ما أخلص الجملة (إذا فهم كل شي)'; g.parentElement.insertBefore(l, g.nextSibling); $('ai-auto').checked = ai2AutoOn(); $('ai-auto').onchange = e => { try { localStorage.setItem('alwa_ai_auto', e.target.checked ? '1' : '0'); } catch (x) {} }; } } catch (e) {}
     try { const md = $('modal-ai'); if (!md._ai2o) { md._ai2o = 1; new MutationObserver(() => { if (md.classList.contains('hidden')) ai2Halt(); }).observe(md, { attributes: true, attributeFilter: ['class'] }); } } catch (e) {}
 }
 function ai2Halt() { ai2StopTimer(); const r = _ai2Rec; _ai2Rec = null; if (r) { try { r.onend = null; r.onresult = null; r.onerror = null; r.abort(); } catch (e) {} } try { $('ai-mic').textContent = '🎤 اضغط وتكلم'; } catch (e) {} }
@@ -6755,11 +6754,11 @@ function aiMic() {
                     const alts = []; for (let a = 0; a < res.length; a++) alts.push(res[a].transcript);
                     let best = alts[0], bs = -1e9; const base = finals.join(' ');
                     alts.forEach(a => { const s = ai2PlanScore(aiParse(base + ' ' + a)); if (s > bs) { bs = s; best = a; } });
-                    finals.push(best.trim());
+                    finals.push(best.trim()); setTimeout(done, 30); // ينفّذ أول ما تخلص الجملة
                 } else interim += res[0].transcript;
             }
             t.value = (finals.join(' ') + ' ' + interim).trim();
-            clearTimeout(silence); silence = setTimeout(done, 1800);
+            clearTimeout(silence); silence = setTimeout(done, 1100);
             if (!interim) aiParseBtn(false);
         };
         r.onerror = ev => {
@@ -6771,6 +6770,27 @@ function aiMic() {
     };
     go('ar-IQ');
 }
+
+// ---------- ضغط مطوّل على زر المساعد = تكلم مباشرة ----------
+(function () {
+    let t0 = 0, hold = null, fired = false;
+    const fab = () => document.getElementById('ai-fab');
+    const isFab = e => e.target && e.target.closest && e.target.closest('#ai-fab');
+    document.addEventListener('pointerdown', e => { if (!isFab(e)) return; fired = false; t0 = Date.now(); clearTimeout(hold); hold = setTimeout(() => { const f = fab(); if (f) { f.style.transform = 'scale(1.18)'; f.style.boxShadow = '0 0 0 8px rgba(124,58,237,.3)'; } try { navigator.vibrate && navigator.vibrate(30); } catch (x) {} }, 380); }, true);
+    const reset = () => { clearTimeout(hold); const f = fab(); if (f) { f.style.transform = ''; f.style.boxShadow = '0 4px 12px rgba(0,0,0,.3)'; } };
+    document.addEventListener('pointerup', e => {
+        if (!isFab(e)) { reset(); return; }
+        const long = Date.now() - t0 >= 380; reset();
+        if (!long) return;
+        fired = true; // داخل نفس اللمسة حتى الآيفون يسمح بالمايك
+        try { aiOpen(); aiMic(); } catch (x) {}
+    }, true);
+    document.addEventListener('pointercancel', reset, true);
+    document.addEventListener('click', e => { if (fired && isFab(e)) { fired = false; e.stopPropagation(); e.preventDefault(); } }, true);
+    document.addEventListener('contextmenu', e => { if (isFab(e)) e.preventDefault(); }, true);
+    const tip = () => { const f = fab(); if (f && !f._tip) { f._tip = 1; f.title = 'ضغطة: فتح المساعد · ضغط مطوّل: تكلم مباشرة'; f.style.touchAction = 'none'; f.style.webkitUserSelect = 'none'; f.style.userSelect = 'none'; f.style.webkitTouchCallout = 'none'; } };
+    setInterval(tip, 2000); tip();
+})();
 
 // ---------- تأكيد «كطلبية» حتى ما تنضغط بالغلط ----------
 (function () {
