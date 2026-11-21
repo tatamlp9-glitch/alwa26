@@ -6729,8 +6729,9 @@ function aiOpen() {
     t.oninput = () => aiParseBtn(false);
     try { const p = document.querySelector('#modal-ai p'); if (p && !p._ai2) { p._ai2 = 1; p.innerHTML = 'تكلم طبيعي، مثال: <b>عند احمد طماطه 20 كيلو بسعر 1500 وخيار 10 كيلو بالف، الواصل 30 الف، اطبع الوصل</b><br><span class="text-[11px]">يفهم: اسم المشتري، المواد (حتى بدون فواصل)، الكيلو/العدد/السعر، الأرقام بالكلام (الف وخمسميه، كيلو ونص)، «شيل خيار»، «الواصل…»، «مشتري جديد»، «اطبع الوصل».</span>'; } } catch (e) {}
     try { const g = $('ai-go').parentElement; if (g && !$('ai-auto')) { const l = document.createElement('label'); l.className = 'flex items-center gap-2 text-xs font-bold text-slate-600 mt-2'; l.innerHTML = '<input id="ai-auto" type="checkbox" class="w-4 h-4"> نفّذ تلقائياً بعد ما أخلص كلام (إذا فهم كل شي)'; g.parentElement.insertBefore(l, g.nextSibling); $('ai-auto').checked = ai2AutoOn(); $('ai-auto').onchange = e => { try { localStorage.setItem('alwa_ai_auto', e.target.checked ? '1' : '0'); } catch (x) {} }; } } catch (e) {}
-    setTimeout(() => aiMic(), 150);
+    try { const md = $('modal-ai'); if (!md._ai2o) { md._ai2o = 1; new MutationObserver(() => { if (md.classList.contains('hidden')) ai2Halt(); }).observe(md, { attributes: true, attributeFilter: ['class'] }); } } catch (e) {}
 }
+function ai2Halt() { ai2StopTimer(); const r = _ai2Rec; _ai2Rec = null; if (r) { try { r.onend = null; r.onresult = null; r.onerror = null; r.abort(); } catch (e) {} } try { $('ai-mic').textContent = '🎤 اضغط وتكلم'; } catch (e) {} }
 function aiMic() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { aiMicFail(); return; }
@@ -6739,9 +6740,12 @@ function aiMic() {
     const btn = $('ai-mic'), t = $('ai-txt');
     const go = lang => {
         let r; try { r = new SR(); } catch (e) { aiMicFail(); return; }
-        _ai2Rec = r; r.lang = lang; r.interimResults = true; r.continuous = true; r.maxAlternatives = 5;
+        const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        _ai2Rec = r; r.lang = lang; r.interimResults = true; r.continuous = !ios; r.maxAlternatives = 5;
         let finals = [], silence = null, gotAny = false;
         const done = () => { try { r.stop(); } catch (e) {} };
+        silence = setTimeout(done, 9000); // إذا ما سمع شي يوگف لحاله
+        setTimeout(() => { if (_ai2Rec === r) { ai2Halt(); if (t.value.trim()) aiParseBtn(false); } }, 25000); // حماية من التعليق
         btn.textContent = '🔴 أسمعك... تكلم (اضغط حتى توقف)';
         r.onresult = e => {
             gotAny = true; let interim = '';
@@ -6767,6 +6771,20 @@ function aiMic() {
     };
     go('ar-IQ');
 }
+
+// ---------- تأكيد «كطلبية» حتى ما تنضغط بالغلط ----------
+(function () {
+    try {
+        const oc = window.cartToOrder; if (!oc || oc._ok) return;
+        const w = function () {
+            const c = carts[activeCart], args = arguments, self = this;
+            if (!c || !c.items || !c.items.length || c.orderId) return oc.apply(self, args); // رسائل الخطأ الأصلية
+            const nm = (c.customer || '').trim();
+            confirmBox('تحوّل هذه السلة' + (nm ? ' (' + nm + ')' : '') + ' إلى طلبية؟', () => oc.apply(self, args), null, 'نعم، حوّلها', 'لا');
+        };
+        w._ok = 1; window.cartToOrder = w;
+    } catch (e) {}
+})();
 
 // ---------- 3) البصمة / Face ID ----------
 const BIO = {
@@ -6850,7 +6868,8 @@ async function bioRefresh() {
                 + '.bio-gbtn{min-width:52px;padding:0 14px;gap:6px;color:#fff;font-weight:800;font-size:14px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(135deg,#064e3b,#0f766e 55%,#0369a1);box-shadow:0 4px 12px rgba(15,118,110,.4)}.bio-gbtn .bio-ic{width:30px;height:30px}.bio-gbtn:active{transform:scale(.94)}'
                 + '.bio-scan{animation:bioScan 2.2s ease-in-out infinite}@keyframes bioScan{0%,100%{transform:translateY(0)}50%{transform:translateY(23px)}}'
                 + '.bio-scan2{stroke-dasharray:16;animation:bioFp 2s ease-in-out infinite}@keyframes bioFp{0%,100%{stroke-dashoffset:16}50%{stroke-dashoffset:0}}'
-                + '@media (prefers-reduced-motion:reduce){.bio-scan,.bio-scan2{animation:none}}';
+                + '@media (prefers-reduced-motion:reduce){.bio-scan,.bio-scan2{animation:none}}'
+                + '#modal-ai{z-index:200!important}#modal-ai>div{padding-bottom:calc(18px + env(safe-area-inset-bottom))!important}';
             document.head.appendChild(st);
         } catch (e) {}
         try {
