@@ -7794,4 +7794,15 @@ ${context()}`;
     }, 2000);
 })();
 </script>
+<script>
+(function(){
+  function pc(src){ try{ const s=decodeURIComponent(src); const L=[...s.matchAll(/(?:fill|stroke)="(#[0-9a-fA-F]{3,6})"/g)].map(m=>m[1]);
+    for(let h of L){ h=h.slice(1); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); const mx=Math.max(r,g,b),mn=Math.min(r,g,b); if(mx>235&&mn>200) continue; if(mx<40) continue; return r+','+g+','+b; } }catch(e){} return ''; }
+  function tint(){ const g=document.getElementById('products-grid'); if(!g) return; g.querySelectorAll(':scope>button').forEach(b=>{ const i=b.querySelector('img'); const src=i?i.getAttribute('src')||'':''; if(b._pcs===src) return; b._pcs=src; const c=src.startsWith('data:image/svg')?pc(src):''; if(c){ b.style.setProperty('--pc',c); b.classList.add('pc-t'); } else { b.style.removeProperty('--pc'); b.classList.remove('pc-t'); } }); }
+  const st=document.createElement('style'); st.textContent='@media (min-width:761px){html.nt #products-grid>button.pc-t:not(.in-cart){background-image:radial-gradient(circle at 20% 55%,rgba(var(--pc),.42),rgba(var(--pc),.12) 55%,transparent 80%),linear-gradient(160deg,#ffffff,#f0fdf4)!important;border-color:rgba(var(--pc),.55)!important}html.nt.dark #products-grid>button.pc-t:not(.in-cart){background-image:radial-gradient(circle at 20% 55%,rgba(var(--pc),.45),rgba(var(--pc),.14) 55%,transparent 82%),linear-gradient(160deg,#16275c,#0c1536)!important;border-color:rgba(var(--pc),.6)!important}}';
+  document.head.appendChild(st);
+  const go=()=>{ tint(); const g=document.getElementById('products-grid'); if(g) new MutationObserver(()=>tint()).observe(g,{childList:true,subtree:true}); };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',go); else go();
+})();
+</script>
 </body></html>
