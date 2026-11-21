@@ -119,6 +119,62 @@
 .dark #name-lock{background:#1e293b;color:#e2e8f0;border-color:#64748b}
 .dark #name-lock.on{background:#dc2626;color:#fff;border-color:#fecaca}
 .dark #customer-name[readonly]{background:#7f1d1d !important;color:#fff !important;border-color:#f87171 !important}
+
+/* ملخص المواد المطلوبة (الطلبيات) */
+#orders-sum{margin-bottom:14px}
+.osum{border:2px solid #16a34a;border-radius:16px;background:#f0fdf4;overflow:hidden}
+.osum-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:#15803d;color:#fff;font-weight:900;cursor:pointer}
+.osum-h small{font-weight:700;opacity:.9}
+.osum-b{padding:8px 10px}
+.osum-tools{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.osum-tools button{padding:6px 12px;border-radius:10px;font-weight:900;font-size:13px;border:2px solid #86efac;background:#fff;color:#14532d}
+.osum-tools button.on{background:#16a34a;color:#fff;border-color:#166534}
+.osum-row{border-bottom:1px dashed #86efac;padding:6px 2px}
+.osum-row:last-child{border-bottom:0}
+.osum-row summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font-weight:900;color:#14532d}
+.osum-row summary::-webkit-details-marker{display:none}
+.osum-nm{flex:1;min-width:0;font-size:17px}
+.osum-q{display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.osum-q b{background:#fff;border:2px solid #facc15;border-radius:10px;padding:2px 10px;font-size:16px;color:#111}
+.osum-q b.k{border-color:#16a34a}
+.osum-row summary{flex-wrap:wrap}
+.osum-stk{flex-basis:100%;font-size:13px;font-weight:900;border-radius:8px;padding:3px 8px}
+.osum-stk.ok{background:#dcfce7;color:#166534}
+.osum-stk.short{background:#fee2e2;color:#b91c1c}
+.osum-stk.none{background:#f1f5f9;color:#475569}
+.dark .osum-stk.ok{background:#14532d;color:#bbf7d0}
+.dark .osum-stk.short{background:#7f1d1d;color:#fecaca}
+.dark .osum-stk.none{background:#1e293b;color:#cbd5e1}
+.osum-n{font-size:11px;color:#166534;font-weight:800}
+.osum-who{padding:4px 8px 6px;display:grid;gap:3px;font-size:13px;font-weight:800;color:#334155}
+.osum-who div{display:flex;justify-content:space-between;gap:8px;background:#fff;border-radius:8px;padding:3px 8px}
+.osum-empty{padding:10px;text-align:center;font-weight:800;color:#166534}
+.dark .osum{background:#0f2a1a;border-color:#22c55e}
+.dark .osum-tools button{background:#14301f;color:#bbf7d0;border-color:#166534}
+.dark .osum-tools button.on{background:#16a34a;color:#fff}
+.dark .osum-row summary{color:#dcfce7}
+.dark .osum-row{border-color:#166534}
+.dark .osum-q b{background:#0b1a12;color:#fff}
+.dark .osum-n{color:#86efac}
+.dark .osum-who{color:#e2e8f0}
+.dark .osum-who div{background:#14301f}
+
+/* ترتيب خانات المادة بالطلبية */
+.oi-grid{display:grid;gap:8px;margin-top:8px}
+.oi-grid.g3{grid-template-columns:1fr 1fr 1.3fr}
+.oi-grid.g2{grid-template-columns:1fr 1fr}
+.oi-f{display:flex;flex-direction:column;gap:2px;min-width:0}
+.oi-f span{font-size:12px;font-weight:900;color:#64748b;text-align:center}
+.oi-f input{width:100% !important;min-width:0;text-align:center;border:2px solid #cbd5e1 !important;border-radius:12px;padding:0 4px !important;font-weight:900 !important;background:#fff}
+.oi-fp span{color:#b45309}
+.oi-fp input{border-color:#fbbf24 !important}
+.oi-trow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;padding:4px 12px;border-radius:10px;background:#ecfdf5;font-weight:900;color:#065f46;font-size:13px}
+.oi-trow .oi-tot{margin:0;font-size:20px}
+.dark .oi-f span{color:#94a3b8}
+.dark .oi-fp span{color:#fbbf24}
+.dark .oi-f input{background:#0f172a;color:#fff;border-color:#475569 !important}
+.dark .oi-fp input{background:#2a1f05;border-color:#f59e0b !important}
+.dark .oi-trow{background:#064e3b;color:#a7f3d0}
 </style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1872,7 +1928,7 @@ html.dark .stk-card { background:rgba(24,34,52,.8); border-color:rgba(255,255,25
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs p-5 border border-slate-200">
         <h3 class="text-lg font-bold text-slate-800 mb-1"><i class="fa-solid fa-lock text-brand-600 ml-1"></i> قسم محمي</h3>
         <p class="text-xs text-slate-500 mb-3">اكتب كلمة السر للدخول.</p>
-        <input id="gate-pass" type="password" autocomplete="off" onkeydown="if(event.key==='Enter')gateOk()" class="w-full p-3 border-2 border-slate-300 rounded-lg text-center font-bold text-lg" placeholder="كلمة السر">
+        <input id="gate-pass" type="text" inputmode="text" name="sec-gate" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="-webkit-text-security:disc;text-security:disc" onkeydown="if(event.key==='Enter')gateOk()" class="w-full p-3 border-2 border-slate-300 rounded-lg text-center font-bold text-lg" placeholder="كلمة السر">
         <p id="gate-err" class="hidden text-xs font-bold text-red-600 mt-2 text-center">كلمة السر غير صحيحة</p>
         <div class="flex gap-2 mt-3"><button onclick="gateOk()" class="flex-1 bg-brand-600 text-white py-2.5 rounded-lg font-bold">دخول</button><button onclick="gateCancel()" class="flex-1 bg-slate-200 text-slate-700 py-2.5 rounded-lg font-bold">إلغاء</button></div>
     </div>
@@ -4311,18 +4367,19 @@ function ticketHTML(o, role) {
                 <input type="checkbox" ${i.done ? 'checked' : ''} onchange="toggleItem('${o.id}',${idx},this.checked)" class="w-8 h-8 accent-emerald-600 shrink-0">
                 <div class="font-bold text-base break-words flex-1 min-w-0 ${i.done ? 'line-through opacity-60' : ''}">${esc(i.name)}</div>
             </label>`}
-            <div class="flex items-center gap-1.5 mt-1.5 pr-11 text-xs flex-wrap">
-                <input type="text" inputmode="decimal" value="${curQ(i, 'b') || ''}" placeholder="" oninput="setQty('${o.id}',${idx},'b',this.value)" class="w-16 text-center p-2 border border-slate-300 rounded-lg font-bold text-sm oi-num"><span class="font-bold">عدد</span>
-                <input type="text" inputmode="decimal" value="${curQ(i, 'w') || ''}" placeholder="" oninput="setQty('${o.id}',${idx},'w',this.value)" class="w-20 text-center p-2 border border-slate-300 rounded-lg font-bold text-sm oi-num"><span class="font-bold">كيلو</span>
-                ${own ? `<input type="text" inputmode="decimal" value="${Number(i.price) > 0 ? i.price : ''}" placeholder="${dflt(i.name) || 'سعر'}" oninput="setItemPrice('${o.id}',${idx},this.value)" class="w-24 text-center p-2 border-2 border-amber-400 rounded-lg font-black text-sm oi-num oi-price"><span class="font-bold">سعر</span>
-                <b id="oit-${o.id}-${idx}" class="oi-tot">${fmt(itemLine(i))}</b>` : ''}
+            <div class="oi-grid ${own ? 'g3' : 'g2'}">
+                <label class="oi-f"><span>عدد</span><input type="text" inputmode="decimal" value="${curQ(i, 'b') || ''}" placeholder="0" oninput="setQty('${o.id}',${idx},'b',this.value)" class="oi-num"></label>
+                <label class="oi-f"><span>كيلو</span><input type="text" inputmode="decimal" value="${curQ(i, 'w') || ''}" placeholder="0" oninput="setQty('${o.id}',${idx},'w',this.value)" class="oi-num"></label>
+                ${own ? `<label class="oi-f oi-fp"><span>سعر</span><input type="text" inputmode="decimal" value="${Number(i.price) > 0 ? i.price : ''}" placeholder="${dflt(i.name) || '0'}" oninput="setItemPrice('${o.id}',${idx},this.value)" class="oi-num oi-price"></label>` : ''}
             </div>
+            ${own ? `<div class="oi-trow"><span>المجموع</span><b id="oit-${o.id}-${idx}" class="oi-tot">${fmt(itemLine(i))}</b></div>` : ''}
         </div>`).join('');
     const readyBtn = `<button onclick="toggleReady('${o.id}')" class="w-full py-2.5 rounded-lg text-sm font-bold ${p.full ? 'bg-slate-200 text-slate-700' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}"><i class="fa-solid fa-check-double ml-1"></i> ${p.full ? 'إلغاء التجهيز' : 'تم تجهيز الكل ✓'}</button>`;
     const actions = role === 'owner' ? `
         ${readyBtn}
         ${st !== 2 ? `<button onclick="toggleSent('${o.id}')" class="w-full mt-1.5 py-2.5 rounded-lg text-sm font-bold text-white ${o.sent ? 'bg-amber-500' : 'bg-sky-600 hover:bg-sky-700'}"><i class="fa-solid fa-cart-arrow-down ml-1"></i> ${o.sent ? 'في سلة الطلبيات ✓' : 'إرسال لسلة الطلبيات'}</button>` : ''}
         <div class="flex gap-1.5 mt-1.5 text-[12px] font-bold">
+            <button onclick="printOrderReceipt('${o.id}')" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg"><i class="fa-solid fa-print ml-1"></i> وصلة</button>
             <button onclick="openOrderEdit('${o.id}')" class="flex-1 py-2 bg-slate-200 text-slate-700 rounded-lg"><i class="fa-solid fa-pen ml-1"></i> تعديل</button>
             <button onclick="deleteOrder('${o.id}')" class="px-4 py-2 bg-red-100 text-red-600 rounded-lg"><i class="fa-solid fa-trash"></i></button>
         </div>` : `
@@ -4355,12 +4412,12 @@ function renderOrdersOwner() {
     list.sort((a, b) => orderState(a) - orderState(b) || ((b.created || 0) - (a.created || 0)));
     if (!list.length) { $('orders-list').innerHTML = emptyBox('clip','لا توجد طلبيات','اضغط «طلبية جديدة» للبدء'); return; }
     const groups = {};
-    list.forEach(o => { const k = (o.who || '').trim(); (groups[k] = groups[k] || []).push(o); });
+    list.forEach(o => { const k = (o.who || '').trim() || String(o.customer || '').trim(); (groups[k] = groups[k] || []).push(o); });
     const names = Object.keys(groups).sort((a, b) => (groups[b].filter(o => orderState(o) === 1).length - groups[a].filter(o => orderState(o) === 1).length) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
     $('orders-list').innerHTML = names.map(n => {
         const g = groups[n], pend = g.filter(o => orderState(o) === 1).length, rdy = g.filter(o => orderState(o) === 0).length;
         return `<section class="pbox ${g.length > 1 ? 'lg:col-span-2' : ''}">
-            <div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-user ml-1"></i> ${n ? esc(n) : 'بدون اسم شخص'}</span><span class="text-xs font-bold">${g.length} طلبية${pend ? ` · قيد التجهيز ${pend}` : ''}${rdy ? ` · جاهزة ${rdy}` : ''}</span></div>
+            <div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-user ml-1"></i> ${n ? esc(n) : 'بدون اسم'}</span><span class="text-xs font-bold">${g.length} طلبية${pend ? ` · قيد التجهيز ${pend}` : ''}${rdy ? ` · جاهزة ${rdy}` : ''}</span></div>
             <div class="tickets">${g.map(o => ticketHTML(o, 'owner')).join('')}</div>
         </section>`;
     }).join('');
@@ -6195,6 +6252,151 @@ function qrSvg(text, px) { const m = qrMake(text); if (!m) return ''; const n = 
   var _pc=window.persistCarts; window.persistCarts=function(){ var r=_pc.apply(this,arguments); ui(); return r; };
   document.addEventListener('DOMContentLoaded',ui); setTimeout(ui,500);
 })();
+
+// ===== ملخص المواد المطلوبة بالطلبيات =====
+(function(){
+  var open1 = true, mode = 'todo';
+  try { open1 = localStorage.getItem('alwa_osum_open') !== '0'; mode = localStorage.getItem('alwa_osum_mode2') || 'todo'; } catch (e) {}
+  function num(x){ x = Number(x); return isFinite(x) ? x : 0; }
+  function fmtN(x){ x = Math.round(x * 100) / 100; return String(x); }
+  function collect(){
+    var map = {};
+    (orders || []).forEach(function(o){
+      if (orderState(o) === 2) return;                       // المفوترة ما تنحسب
+      (o.items || []).forEach(function(i){
+        if (mode === 'todo' && i.done) return;                // قيد التجهيز فقط
+        var nm = String(i.name || '').trim(); if (!nm) return;
+        var b = num(curQ(i,'b')), w = num(curQ(i,'w'));
+        var r = map[nm] || (map[nm] = { name: nm, b: 0, w: 0, who: {}, ords: {} });
+        r.b += b; r.w += w; r.ords[o.id] = 1;
+        var wn = String(o.customer || '').trim() || (o.who || '').trim() || 'بدون اسم';
+        var x = r.who[wn] || (r.who[wn] = { b: 0, w: 0 }); x.b += b; x.w += w;
+      });
+    });
+    return Object.keys(map).map(function(k){ return map[k]; }).sort(function(a,b){ return a.name.localeCompare(b.name, 'ar'); });
+  }
+  function stockMap(){
+    var m = {}, el = document.getElementById('stock-search'), old = el ? el.value : '';
+    try { if (el) el.value = ''; (stockLeft() || []).forEach(function(o){ m[normName(o.name)] = o; }); }
+    catch (e) {} finally { if (el) el.value = old; }
+    return m;
+  }
+  function stkInfo(r, m){
+    var o = m[normName(r.name)];
+    if (!o) return { c: 'none', t: '📦 ما مسجل بالمخزن' };
+    var parts = [], short = [];
+    var hasB = (o.inB > 0 || o.adjB !== 0), hasK = (o.inK > 0 || o.adjK !== 0);
+    var lb = Math.round(o.leftB * 100) / 100, lk = Math.round(o.leftK * 100) / 100;
+    if (hasB) { parts.push(fmtN(lb) + ' صندوق'); if (r.b > lb) short.push(fmtN(Math.round((r.b - lb) * 100) / 100) + ' عدد'); }
+    if (hasK) {
+      parts.push(fmtN(lk) + ' كيلو');
+      var needK = r.w + (hasB ? 0 : r.b * 10);
+      if (needK > lk) short.push(fmtN(Math.round((needK - lk) * 100) / 100) + ' كيلو');
+    }
+    var base = '📦 بالمخزن: ' + (parts.join(' + ') || '0');
+    if (short.length) return { c: 'short', t: base + ' ← ⚠️ ناقص ' + short.join(' + ') };
+    return { c: 'ok', t: base + ' ← ✅ يكفي' };
+  }
+  function qtxt(b, w){ var t = []; if (b) t.push(fmtN(b) + ' عدد'); if (w) t.push(fmtN(w) + ' كيلو'); return t.join(' + ') || '0'; }
+  window.osumToggle = function(){ open1 = !open1; try { localStorage.setItem('alwa_osum_open', open1 ? '1' : '0'); } catch (e) {} osumRender(); };
+  window.osumMode = function(m){ mode = m; try { localStorage.setItem('alwa_osum_mode2', m); } catch (e) {} osumRender(); };
+  window.osumCopy = function(){
+    var rows = collect(); if (!rows.length) return; var sm = stockMap();
+    var t = (mode === 'todo' ? 'المطلوب تجهيزه' : 'المواد المطلوبة للطلبيات') + ':\n' + rows.map(function(r){ var k = stkInfo(r, sm); return '- ' + r.name + ': ' + qtxt(r.b, r.w) + (k.c === 'short' ? '  (' + k.t.split('← ')[1].replace('⚠️ ', '') + ')' : ''); }).join('\n');
+    var done = function(){ try { showToast('تم نسخ القائمة'); } catch (e) {} };
+    try { navigator.clipboard.writeText(t).then(done, function(){ prompt && 0; }); } catch (e) {}
+  };
+  window.osumClose = function(){
+    document.body.classList.remove('print-osum');
+    ['osum-modal','osum-slip-css'].forEach(function(i){ var x = document.getElementById(i); if (x) x.remove(); });
+    document.removeEventListener('keydown', window._osumEsc || function(){});
+  };
+  window.osumGo = function(){ try { window.print(); } catch (e) { try { showToast('اضغط Ctrl+P للطباعة', true); } catch (e2) {} } };
+  window.osumPrint = function(){
+    var rows = collect(); if (!rows.length) { try { showToast('لا توجد مواد للطباعة', true); } catch (e) {} return; }
+    osumClose();
+    var sm = stockMap();
+    var w = (typeof settings !== 'undefined' && settings.rWidth) ? settings.rWidth : 80;
+    var title = mode === 'todo' ? 'المطلوب تجهيزه من الطلبيات' : 'المواد المطلوبة للطلبيات';
+    var now = new Date(), d = now.toLocaleDateString('ar-IQ') + ' ' + now.toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' });
+    var body = rows.map(function(r){
+      var k = stkInfo(r, sm), sh = k.c === 'short' ? '<div class="osl-s">ناقص ' + esc(k.t.split('ناقص ')[1] || '') + '</div>' : '';
+      return '<div class="osl-r"><span class="osl-n">' + esc(r.name) + '</span><span class="osl-d"></span><b class="osl-q">' + qtxt(r.b, r.w) + '</b></div>' + sh;
+    }).join('');
+    var st = document.createElement('style'); st.id = 'osum-slip-css';
+    st.textContent = '#osum-modal{position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;padding:12px;overflow:auto}'
+      + '#osum-modal .osm-bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;position:sticky;top:0}'
+      + '#osum-modal .osm-bar button{padding:10px 16px;border-radius:12px;font-weight:900;font-size:15px;background:#16a34a;color:#fff}'
+      + '#osum-modal .osm-bar button.x{background:#e2e8f0;color:#334155}'
+      + '#osum-modal .osm-hint{width:100%;text-align:center;color:#fff;font-weight:800;font-size:13px}'
+      + '#osum-slip{width:' + w + 'mm;max-width:100%;background:#fff;color:#000;direction:rtl;padding:3mm;box-shadow:0 8px 30px rgba(0,0,0,.5);font-family:Cairo,"Segoe UI",Tahoma,Arial,sans-serif}'
+      + '.osl-h{text-align:center;font-weight:900;font-size:18px;border-bottom:2px dashed #000;padding-bottom:4px;margin-bottom:6px}.osl-sub{text-align:center;font-size:12px;font-weight:700}'
+      + '.osl-r{display:flex;align-items:baseline;gap:4px;font-size:17px;font-weight:900;padding:3px 0}.osl-d{flex:1;border-bottom:1px dotted #000;transform:translateY(-3px)}'
+      + '.osl-s{font-size:13px;font-weight:900;padding:0 0 3px 0}.osl-f{border-top:2px dashed #000;margin-top:6px;padding-top:4px;text-align:center;font-size:12px;font-weight:800}'
+      + '@page{margin:2mm}'
+      + '@media print{body.print-osum > *:not(#osum-modal){display:none !important}body.print-osum #osum-modal{position:static !important;background:none !important;display:block !important;padding:0 !important;overflow:visible !important}body.print-osum #osum-modal .osm-bar,body.print-osum #osum-modal .osm-hint{display:none !important}body.print-osum #osum-slip{box-shadow:none !important;margin:0 auto}}';
+    document.head.appendChild(st);
+    var m = document.createElement('div'); m.id = 'osum-modal';
+    m.innerHTML = '<div class="osm-hint">هذي الوصلة. اضغط Ctrl+P للطباعة</div><div class="osm-bar"><button type="button" onclick="osumGo()">🖨️ طباعة</button><button type="button" class="x" onclick="osumClose()">✕ إغلاق</button></div>'
+      + '<div id="osum-slip"><div class="osl-h">' + esc((typeof settings !== 'undefined' && settings.shop) || '') + '<div class="osl-sub">' + esc(title) + '</div><div class="osl-sub">' + esc(d) + '</div></div>' + body
+      + '<div class="osl-f">' + rows.length + ' مادة</div></div>';
+    m.addEventListener('click', function(e){ if (e.target === m) osumClose(); });
+    document.body.appendChild(m);
+    try { arDigitsIn(document.getElementById('osum-slip')); } catch (e) {}
+    document.body.classList.add('print-osum');
+    window._osumEsc = function(e){ if (e.key === 'Escape') osumClose(); };
+    document.addEventListener('keydown', window._osumEsc);
+  };
+  function osumRender(){
+    var host = document.getElementById('orders-sum'); if (!host) return;
+    var rows = collect(), sm = stockMap();
+    var head = '<div class="osum-h" onclick="osumToggle()"><span>🧺 المواد المطلوبة بالطلبيات</span><small>' + rows.length + ' مادة ' + (open1 ? '▲' : '▼') + '</small></div>';
+    if (!open1) { host.innerHTML = '<div class="osum">' + head + '</div>'; return; }
+    var body = '<div class="osum-b"><div class="osum-tools">'
+      + '<button type="button" class="' + (mode === 'open' ? 'on' : '') + '" onclick="osumMode(\'open\')">الكل (حتى المجهّز)</button>'
+      + '<button type="button" class="' + (mode === 'todo' ? 'on' : '') + '" onclick="osumMode(\'todo\')">المتبقي (ما جُهّز)</button>'
+      + '<button type="button" onclick="osumCopy()">📋 نسخ القائمة</button>'
+      + '<button type="button" onclick="osumPrint()">🧾 وصلة للطباعة</button></div>';
+    if (!rows.length) body += '<div class="osum-empty">لا توجد مواد مطلوبة</div>';
+    else body += rows.map(function(r){
+      var who = Object.keys(r.who).sort().map(function(n){ return '<div><span>' + esc(n) + '</span><span>' + qtxt(r.who[n].b, r.who[n].w) + '</span></div>'; }).join('');
+      var cnt = Object.keys(r.ords).length;
+      return '<details class="osum-row"><summary><span class="osum-nm">' + esc(r.name) + '</span><span class="osum-q">'
+        + (r.b ? '<b>' + fmtN(r.b) + ' عدد</b>' : '') + (r.w ? '<b class="k">' + fmtN(r.w) + ' كيلو</b>' : '') + (!r.b && !r.w ? '<b>0</b>' : '')
+        + '</span><span class="osum-n">' + cnt + ' طلبية</span>' + (function(){ var k = stkInfo(r, sm); return '<span class="osum-stk ' + k.c + '">' + k.t + '</span>'; })() + '</summary><div class="osum-who">' + who + '</div></details>';
+    }).join('');
+    host.innerHTML = '<div class="osum">' + head + body + '</div>';
+  }
+  window.osumRender = osumRender;
+  var _so = window.saveOrders;
+  window.saveOrders = function(){ var r = _so.apply(this, arguments); try { if (document.getElementById('orders-sum')) osumRender(); } catch (e) {} return r; };
+  var _ro = window.renderOrdersOwner;
+  window.renderOrdersOwner = function(){
+    var r = _ro.apply(this, arguments);
+    try {
+      var list = document.getElementById('orders-list');
+      if (list && !document.getElementById('orders-sum')) { var d = document.createElement('div'); d.id = 'orders-sum'; list.parentNode.insertBefore(d, list); }
+      osumRender();
+    } catch (e) { console.error(e); }
+    return r;
+  };
+})();
+
+// ===== طباعة الطلبية كوصلة (بدون فوترة وبدون حفظ كوصلة مبيعات) =====
+window.printOrderReceipt = function(id){
+  var o = orders.find(function(x){ return x.id === id; }); if (!o) return;
+  var items = (o.items || []).map(cartItemFromOrderItem).filter(function(i){ return (Number(i.bags) || Number(i.weight)) && Number(i.total) >= 0; });
+  if (!items.length) { showToast('الطلبية فاضية', true); return; }
+  var subtotal = items.reduce(function(a, i){ return a + (Number(i.total) || 0); }, 0);
+  var cbase = items.reduce(function(a, i){ return a + (i.noCom ? 0 : (Number(i.total) || 0)); }, 0);
+  var c = calc(subtotal, cbase), now = new Date();
+  var cust = (o.customer && o.customer !== 'بدون اسم') ? o.customer : 'عميل نقدي';
+  var inv = { id: 'ط' + (o.no || ''), date: now.toLocaleDateString('ar-IQ') + ' ' + now.toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' }),
+    customer: cust, items: items, subtotal: subtotal, rate: c.rate, commission: c.commission, grandTotal: c.grand, writer: settings.writer };
+  if (o.note) inv.note = o.note;
+  showReceipt(inv);
+  try { showToast('وصلة الطلبية: راجعها واضغط طباعة'); } catch (e) {}
+};
 </script>
 </body>
 </html>
