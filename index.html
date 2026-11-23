@@ -7861,13 +7861,10 @@ ${context()}`;
     var pxPerMm = Math.max(1, s.offsetWidth) / w;
     var hmm = Math.ceil(s.scrollHeight / pxPerMm * (w / pw)) + 12;
     var st = document.getElementById('osum-page-css'); if (!st) { st = document.createElement('style'); st.id = 'osum-page-css'; document.head.appendChild(st); }
-    var MAXH = (typeof settings !== 'undefined' && settings.rSlipMax) || 285, S = 1, ph = Math.max(hmm, w + 20);
-    if (hmm > MAXH) { S = Math.max(0.5, MAXH / hmm); ph = Math.min(MAXH + 5, Math.ceil(hmm * S) + 6); }
-    st.textContent = '@media print{@page{size:' + w + 'mm ' + ph + 'mm;margin:0}'
+    st.textContent = '@media print{@page{size:' + w + 'mm ' + Math.max(hmm, w + 20) + 'mm;margin:0}'
       + 'html,body,body.print-osum{height:auto !important;min-height:0 !important;max-height:none !important;overflow:visible !important;display:block !important}'
       + 'body.print-osum #osum-modal{position:static !important;inset:auto !important;height:auto !important;overflow:visible !important}'
-      + 'body.print-osum #osum-slip{width:' + (pw / S).toFixed(1) + 'mm !important;max-width:none !important;box-sizing:border-box !important;margin:0 auto !important;padding:1mm 1.5mm !important' + (S < 1 ? ';zoom:' + S.toFixed(3) : '') + '}'
-      + 'body.print-osum #osum-slip .psl-r,body.print-osum #osum-slip .osl-r{break-inside:avoid;page-break-inside:avoid}}';
+      + 'body.print-osum #osum-slip{width:' + pw + 'mm !important;max-width:none !important;box-sizing:border-box !important;margin:0 auto !important;padding:1mm 1.5mm !important}}';
   }
   window.osumGo = function(){ try { prep(); } catch (e) {} setTimeout(function(){ try { window.print(); } catch (e) { try { showToast('اضغط Ctrl+P للطباعة', true); } catch (e2) {} } }, 60); };
   window.addEventListener('beforeprint', function(){ try { prep(); } catch (e) {} });
