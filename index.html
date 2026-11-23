@@ -5062,7 +5062,7 @@ function preparePrint(mode) {
         const mm = Math.ceil(r.offsetHeight * 25.4 / 96 * 1.12) + 20; r.style.cssText = old; // هامش أمان حتى ما ينقطع آخر الوصلة
         const maxH = settings.rMaxH || 145, S = 1, ph = mm > maxH ? maxH : Math.min(1500, Math.max(w + 30, mm)); // الوصلة الطويلة تنقسم لصفحات بحجم الخط الطبيعي (بدل التصغير)
         const zoomCss = S < 1 ? `#printable-receipt{zoom:${S.toFixed(3)};width:${(w / S).toFixed(1)}mm !important;max-width:none !important}` : '';
-        pg = `@page{size:${w}mm ${ph}mm;margin:0} @media print{${mm <= maxH ? `html,body{height:${ph}mm !important;max-height:${ph}mm !important;overflow:hidden !important} #modal-receipt,#modal-receipt>div{break-after:avoid;page-break-after:avoid}` : ''} #printable-receipt tr,#printable-receipt .r-total,#printable-receipt .r-final,#printable-receipt .r-brk{break-inside:avoid;page-break-inside:avoid} #modal-receipt>div{width:100% !important;max-width:${w}mm !important;box-sizing:border-box !important;margin:0 !important} ${S < 1 ? zoomCss : `#printable-receipt{width:${printW()}mm !important;max-width:${printW()}mm !important;box-sizing:border-box !important;margin:0 auto !important}`}}`; // الطول دائماً أكبر من العرض حتى لا تدور الصفحة أفقياً
+        pg = `@page{size:${w}mm ${ph}mm;margin:0} @media print{${mm <= maxH ? `html,body{height:${ph}mm !important;max-height:${ph}mm !important;overflow:hidden !important} #modal-receipt,#modal-receipt>div{break-after:avoid;page-break-after:avoid}` : ''} #printable-receipt tr,#printable-receipt .r-total,#printable-receipt .r-final,#printable-receipt .r-brk{break-inside:avoid;page-break-inside:avoid} #modal-receipt>div{width:100% !important;max-width:${w}mm !important;box-sizing:border-box !important;margin:0 !important} ${S < 1 ? zoomCss : `#printable-receipt{width:${Math.min(printW(), w - 12)}mm !important;max-width:none !important;box-sizing:border-box !important;margin:0 ${w - 4 - Math.min(printW(), w - 12)}mm 0 4mm !important}`}}`; // الطول دائماً أكبر من العرض حتى لا تدور الصفحة أفقياً
     }
     $('pg-style').textContent = pg;
 }
@@ -7857,14 +7857,14 @@ ${context()}`;
   function prep(){
     var s = document.getElementById('osum-slip'); if (!s || !document.body.classList.contains('print-osum')) return;
     var w = (typeof settings !== 'undefined' && settings.rWidth) ? settings.rWidth : 80;
-    var pw = 72; try { pw = printW(); } catch (e) { pw = w >= 80 ? 72 : 48; }
+    var pw = 72; try { pw = printW(); } catch (e) { pw = w >= 80 ? 72 : 48; } pw = Math.min(pw, w - 12);
     var pxPerMm = Math.max(1, s.offsetWidth) / w;
     var hmm = Math.ceil(s.scrollHeight / pxPerMm * (w / pw)) + 12;
     var st = document.getElementById('osum-page-css'); if (!st) { st = document.createElement('style'); st.id = 'osum-page-css'; document.head.appendChild(st); }
     st.textContent = '@media print{@page{size:' + w + 'mm ' + Math.max(hmm, w + 20) + 'mm;margin:0}'
       + 'html,body,body.print-osum{height:auto !important;min-height:0 !important;max-height:none !important;overflow:visible !important;display:block !important}'
       + 'body.print-osum #osum-modal{position:static !important;inset:auto !important;height:auto !important;overflow:visible !important}'
-      + 'body.print-osum #osum-slip{width:' + pw + 'mm !important;max-width:none !important;box-sizing:border-box !important;margin:0 auto !important;padding:1mm 1.5mm !important}}';
+      + 'body.print-osum #osum-slip{width:' + pw + 'mm !important;max-width:none !important;box-sizing:border-box !important;margin:0 ' + (w - 4 - pw) + 'mm 0 4mm !important;padding:1mm 1.5mm !important}}';
   }
   window.osumGo = function(){ try { prep(); } catch (e) {} setTimeout(function(){ try { window.print(); } catch (e) { try { showToast('اضغط Ctrl+P للطباعة', true); } catch (e2) {} } }, 60); };
   window.addEventListener('beforeprint', function(){ try { prep(); } catch (e) {} });
