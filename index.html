@@ -8017,16 +8017,26 @@ ${context()}`;
       + '<input id="ps-k" class="ps-key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" aria-label="مفتاح Gemini"><p id="ps-ke" class="ps-msg" style="color:#dc2626;display:none"></p>');
     foot('<button type="button" class="ps-go" id="ps-ks">حفظ وكمّل</button><button type="button" class="ps-no" id="ps-kc">إلغاء</button>');
     $i('ps-kc').onclick = close;
+    var pb = document.createElement('button'); pb.type = 'button'; pb.textContent = '📋 الصق المفتاح'; pb.className = 'ps-no'; pb.style.cssText = 'width:100%;min-height:46px;border-radius:12px;font-weight:900;margin:8px 0';
+    $i('ps-k').parentNode.insertBefore(pb, $i('ps-k'));
+    pb.onclick = async function(){ try { var tx = await navigator.clipboard.readText(); if (tx) { $i('ps-k').value = tx; $i('ps-ks').click(); } } catch (e) { $i('ps-k').focus(); } };
     $i('ps-ks').onclick = async function(){
-      var k = ($i('ps-k').value || '').trim(); if (!k) return;
+      var raw = String($i('ps-k').value || ''), mm = raw.match(/AIza[0-9A-Za-z_\-]{30,}/);
+      var k = mm ? mm[0] : raw.replace(/[\s"']/g, '');
+      var er = $i('ps-ke'); er.style.display = 'none';
+      if (!k) { er.style.display = 'block'; er.textContent = 'الخانة فارغة. الصق المفتاح أول.'; return; }
       var b = this; b.disabled = true; b.textContent = 'أجرّب المفتاح…';
+      var save = async function(){ LS.set('alwa_gem_key', k); try { await cfgDoc().set({ k: k, upd: Date.now() }); } catch (e) {} try { showToast('تم حفظ المفتاح ✓'); } catch (e) {} if (file) run(file); else close(); };
       try {
         var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=5', { headers: { 'x-goog-api-key': k } });
-        if (!r.ok) throw 0;
-        LS.set('alwa_gem_key', k); try { await cfgDoc().set({ k: k, upd: Date.now() }); } catch (e) {}
-        try { showToast('تم حفظ المفتاح ✓'); } catch (e) {}
-        if (file) run(file); else close();
-      } catch (e) { var er = $i('ps-ke'); er.style.display = 'block'; er.textContent = 'المفتاح ما اشتغل. تأكد إنك نسخته كامل.'; b.disabled = false; b.textContent = 'حفظ وكمّل'; }
+        if (r.ok) { await save(); return; }
+        var tx = ''; try { tx = await r.text(); } catch (e) {}
+        if (/API_KEY_INVALID|API key not valid/i.test(tx)) { er.textContent = 'گوگل يگول المفتاح غلط. اضغط زر النسخ 📋 يم المفتاح بصفحة گوگل، وارجع الصقه هنا.'; }
+        else if (/SERVICE_DISABLED|has not been used|is disabled/i.test(tx)) { er.textContent = 'المفتاح جديد وگوگل بعده يفعّله. انتظر دقيقة وجرّب مرة ثانية.'; }
+        else if (/location is not supported|FAILED_PRECONDITION/i.test(tx)) { er.textContent = 'گوگل ما يسمح بهذا المفتاح من منطقتك.'; }
+        else { await save(); return; }
+      } catch (e) { await save(); return; }
+      er.style.display = 'block'; b.disabled = false; b.textContent = 'حفظ وكمّل';
     };
   }
 
