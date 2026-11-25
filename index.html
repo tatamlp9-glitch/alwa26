@@ -7877,4 +7877,265 @@ ${context()}`;
   window.addEventListener('afterprint', function(){ var x = document.getElementById('osum-page-css'); if (x) x.remove(); });
 })();
 </script>
+<script>
+(function(){
+  // ===== تحديث الأسعار من صورة (Gemini يقرأ خط اليد) =====
+  var LS = { get: function(k){ try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }, set: function(k, v){ try { localStorage.setItem(k, v); } catch (e) {} } };
+  var $i = function(id){ return document.getElementById(id); };
+  function E(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function nn(t){ try { return normName(t); } catch (e) { return String(t || '').trim(); } }
+  function money(n){ return Number(n || 0).toLocaleString('en-US'); }
+  function cfgDoc(){ return firebase.firestore().collection('cfg').doc('ai'); }
+  async function getKey(){
+    var k = LS.get('alwa_gem_key'); if (k) return k;
+    try { var d = await cfgDoc().get(); if (d.exists && d.data().k) { k = d.data().k; LS.set('alwa_gem_key', k); return k; } } catch (e) {}
+    return '';
+  }
+  var MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
+  async function gem(key, parts, schema){
+    var last = null;
+    var pref = LS.get('alwa_pscan_model'); var list = pref ? [pref].concat(MODELS.filter(function(m){ return m !== pref; })) : MODELS.slice();
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      var gen = { temperature: 0.1, responseMimeType: 'application/json' };
+      if (schema) gen.responseSchema = schema;
+      if (/2\.5-flash/.test(m)) gen.thinkingConfig = { thinkingBudget: 512 };
+      var r;
+      try { r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify({ contents: [{ role: 'user', parts: parts }], generationConfig: gen }) }); }
+      catch (e) { last = new Error('net'); continue; }
+      if (r.ok) {
+        var j = await r.json(); LS.set('alwa_pscan_model', m);
+        var t = (((j.candidates || [])[0] || {}).content || {}).parts; t = (t || []).map(function(p){ return p.text || ''; }).join('');
+        return JSON.parse(t);
+      }
+      var txt = ''; try { txt = await r.text(); } catch (e) {}
+      if (/API key not valid|API_KEY_INVALID|PERMISSION_DENIED/i.test(txt)) throw new Error('badkey');
+      if (r.status === 429) { last = new Error('quota'); continue; }
+      last = new Error('http' + r.status);
+    }
+    throw last || new Error('fail');
+  }
+  function shrink(file){
+    return new Promise(function(res, rej){
+      var fr = new FileReader();
+      fr.onload = function(){
+        var img = new Image();
+        img.onload = function(){
+          var M = 1800, s = Math.min(1, M / Math.max(img.width, img.height));
+          var c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+          var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+          var u = c.toDataURL('image/jpeg', 0.88); res({ url: u, b64: u.split(',')[1] });
+        };
+        img.onerror = rej; img.src = fr.result;
+      };
+      fr.onerror = rej; fr.readAsDataURL(file);
+    });
+  }
+
+  var ST = { rows: [], img: '' };
+  var SCHEMA = { type: 'OBJECT', properties: { items: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
+    written: { type: 'STRING' }, price: { type: 'NUMBER' }, id: { type: 'STRING' }, sure: { type: 'BOOLEAN' } }, required: ['written', 'price', 'id', 'sure'] } } }, required: ['items'] };
+
+  function prompt(){
+    var list = products.map(function(p){ return p.id + '|' + p.name; }).join('\n');
+    return 'هذه صورة قائمة أسعار مكتوبة بخط اليد لعلوة خضار وفواكه في دهوك/العراق. الكتابة عربية وقد تكون فيها كلمات كردية (بادينانية) أو لهجة عراقية.\n'
+      + 'كل سطر: اسم مادة، ثم خط، ثم السعر بالدينار للكيلو.\n'
+      + 'قواعد الأسعار: الأرقام عربية هندية (٠١٢٣٤٥٦٧٨٩). «٧..» أو «٧٠٠» = 700. «١٤٠٠» = 1400. «هزار» تعني ألف: «٢,٥ هزار» = 2500، «١٤ هزار» = 14000. أعد السعر رقماً عادياً بالدينار.\n'
+      + 'هذه قائمة المواد الموجودة في البرنامج (رقم|اسم):\n' + list + '\n'
+      + 'لكل سطر في الصورة: written = الاسم كما هو مكتوب، price = السعر، id = رقم المادة المطابقة من القائمة أعلاه (طابق بالمعنى وليس الحروف فقط: مثلاً «تفاح زرد» = تفاح أصفر، «تفاح سور» = تفاح أحمر، «فلفل» = فلفل بطبط إذا ما في فلفل ثاني، «شوندر غزل» مادة مختلفة عن «شوندر»). إذا ما في مادة مطابقة ضع id = "". sure = false إذا الخط مو واضح أو المطابقة مو أكيدة.\n'
+      + 'لا تخترع سطور غير موجودة. أعد JSON فقط.';
+  }
+
+  function css(){
+    if ($i('ps-css')) return;
+    var s = document.createElement('style'); s.id = 'ps-css';
+    s.textContent = ''
+      + '#ps-modal{position:fixed;inset:0;z-index:300;background:rgba(2,6,23,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;padding:0}'
+      + '@media (min-width:640px){#ps-modal{align-items:center;padding:16px}}'
+      + '#ps-box{width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;background:#fff;color:#0f172a;border-radius:22px 22px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.35);overflow:hidden;padding-bottom:env(safe-area-inset-bottom)}'
+      + '@media (min-width:640px){#ps-box{border-radius:22px}}'
+      + 'html.dark #ps-box{background:#0f1a2e;color:#e2e8f0}'
+      + '#ps-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(148,163,184,.25)}'
+      + '#ps-head h3{flex:1;font-size:17px;font-weight:900;margin:0}'
+      + '#ps-x{width:40px;height:40px;border-radius:12px;font-size:18px;font-weight:900;background:rgba(148,163,184,.18)}'
+      + '#ps-body{overflow-y:auto;padding:12px 14px;flex:1;overscroll-behavior:contain}'
+      + '#ps-foot{display:flex;gap:8px;padding:12px 14px;border-top:1px solid rgba(148,163,184,.25)}'
+      + '#ps-foot button{flex:1;min-height:48px;border-radius:14px;font-weight:900;font-size:15px}'
+      + '.ps-go{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;box-shadow:0 6px 16px -6px rgba(22,163,74,.7)}'
+      + '.ps-go:disabled{opacity:.5}'
+      + '.ps-no{background:rgba(148,163,184,.2)}'
+      + '.ps-msg{font-size:13px;font-weight:700;opacity:.85;margin:4px 2px 10px;line-height:1.6}'
+      + '.ps-thumb{width:100%;max-height:150px;object-fit:cover;border-radius:14px;margin-bottom:10px;border:1px solid rgba(148,163,184,.3)}'
+      + '.ps-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:10px;border-radius:14px;border:1.5px solid rgba(148,163,184,.3);margin-bottom:8px;background:rgba(148,163,184,.06)}'
+      + '.ps-row.warn{border-color:#f59e0b;background:rgba(245,158,11,.1)}'
+      + '.ps-row.off{opacity:.5}'
+      + '.ps-row input[type=checkbox]{width:22px;height:22px;accent-color:#16a34a}'
+      + '.ps-w{font-size:11px;font-weight:700;opacity:.7;margin-top:2px}'
+      + '.ps-sel{width:100%;font-weight:900;font-size:14px;padding:6px 8px;border-radius:10px;border:1px solid rgba(148,163,184,.45);background:transparent;color:inherit}'
+      + 'html.dark .ps-sel option{background:#0f1a2e}'
+      + '.ps-pr{display:flex;flex-direction:column;align-items:flex-end;gap:2px}'
+      + '.ps-old{font-size:11px;font-weight:800;opacity:.6;text-decoration:line-through;font-variant-numeric:tabular-nums}'
+      + '.ps-new{width:92px;text-align:center;font-weight:900;font-size:16px;padding:6px;border-radius:10px;border:2px solid #16a34a;background:#fff;color:#0f172a;font-variant-numeric:tabular-nums}'
+      + '.ps-same .ps-new{border-color:rgba(148,163,184,.5)}'
+      + '.ps-tag{font-size:10px;font-weight:900;padding:2px 7px;border-radius:999px;display:inline-block;margin-inline-start:4px}'
+      + '.ps-tag.up{background:#fee2e2;color:#b91c1c}.ps-tag.dn{background:#dcfce7;color:#15803d}.ps-tag.eq{background:rgba(148,163,184,.25)}.ps-tag.nw{background:#dbeafe;color:#1d4ed8}.ps-tag.lk{background:#fef3c7;color:#92400e}'
+      + '.ps-spin{display:flex;flex-direction:column;align-items:center;gap:12px;padding:28px 8px;text-align:center;font-weight:800}'
+      + '.ps-spin i{width:44px;height:44px;border-radius:50%;border:4px solid rgba(22,163,74,.25);border-top-color:#16a34a;animation:psr .8s linear infinite}'
+      + '@keyframes psr{to{transform:rotate(360deg)}}'
+      + '@media (prefers-reduced-motion:reduce){.ps-spin i{animation-duration:2.4s}}'
+      + '.ps-key{width:100%;padding:12px;border-radius:12px;border:2px solid rgba(148,163,184,.5);font-weight:800;font-size:15px;background:#fff;color:#0f172a;direction:ltr;text-align:left}'
+      + '.ps-link{display:block;text-align:center;padding:12px;border-radius:12px;background:#1d4ed8;color:#fff!important;font-weight:900;margin:8px 0}'
+      + '.ps-sum{font-size:13px;font-weight:900;padding:8px 10px;border-radius:12px;background:rgba(22,163,74,.12);margin-bottom:10px}'
+      // الزر الكبير
+      + '#ps-cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:58px;border-radius:18px;font-weight:900;font-size:17px;color:#fff;background:linear-gradient(135deg,#16a34a 0%,#0f766e 60%,#0369a1 100%);box-shadow:0 10px 24px -10px rgba(15,118,110,.8);transition:transform .15s,box-shadow .15s}'
+      + '#ps-cta:hover{transform:translateY(-2px);box-shadow:0 14px 28px -10px rgba(15,118,110,.9)}#ps-cta:active{transform:scale(.97)}'
+      + '#ps-cta small{display:block;font-size:11px;font-weight:700;opacity:.85}'
+      + '#ps-cta svg{width:30px;height:30px;flex:none}'
+      + '#ps-tools{display:flex;gap:8px;margin-top:8px}#ps-tools button{flex:1;min-height:44px;border-radius:14px;font-weight:900;font-size:13px}'
+      + '#ps-wrap{width:100%}';
+    document.head.appendChild(s);
+  }
+
+  function modal(title){
+    css(); close();
+    var m = document.createElement('div'); m.id = 'ps-modal';
+    m.innerHTML = '<div id="ps-box" role="dialog" aria-modal="true" aria-labelledby="ps-t"><div id="ps-head"><h3 id="ps-t">' + E(title) + '</h3><button type="button" id="ps-x" aria-label="إغلاق">✕</button></div><div id="ps-body"></div><div id="ps-foot"></div></div>';
+    document.body.appendChild(m);
+    $i('ps-x').onclick = close;
+    m.addEventListener('click', function(e){ if (e.target === m) close(); });
+    return m;
+  }
+  function close(){ var m = $i('ps-modal'); if (m) m.remove(); }
+  function body(h){ $i('ps-body').innerHTML = h; }
+  function foot(h){ $i('ps-foot').innerHTML = h; }
+
+  function keyStep(file){
+    modal('مرة وحدة: مفتاح الذكاء المجاني');
+    body('<p class="ps-msg">حتى يقرأ البرنامج خط اليد يحتاج مفتاح Gemini المجاني من گوگل. تسويه مرة وحدة وينحفظ لكل الأجهزة.</p>'
+      + '<p class="ps-msg">١) افتح الرابط وسجّل بحساب گوگل ← اضغط <b>Create API key</b> ← انسخه.<br>٢) الصقه هنا واضغط حفظ.</p>'
+      + '<a class="ps-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">فتح صفحة المفتاح ↗</a>'
+      + '<input id="ps-k" class="ps-key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" aria-label="مفتاح Gemini"><p id="ps-ke" class="ps-msg" style="color:#dc2626;display:none"></p>');
+    foot('<button type="button" class="ps-go" id="ps-ks">حفظ وكمّل</button><button type="button" class="ps-no" id="ps-kc">إلغاء</button>');
+    $i('ps-kc').onclick = close;
+    $i('ps-ks').onclick = async function(){
+      var k = ($i('ps-k').value || '').trim(); if (!k) return;
+      var b = this; b.disabled = true; b.textContent = 'أجرّب المفتاح…';
+      try {
+        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=5', { headers: { 'x-goog-api-key': k } });
+        if (!r.ok) throw 0;
+        LS.set('alwa_gem_key', k); try { await cfgDoc().set({ k: k, upd: Date.now() }); } catch (e) {}
+        try { showToast('تم حفظ المفتاح ✓'); } catch (e) {}
+        if (file) run(file); else close();
+      } catch (e) { var er = $i('ps-ke'); er.style.display = 'block'; er.textContent = 'المفتاح ما اشتغل. تأكد إنك نسخته كامل.'; b.disabled = false; b.textContent = 'حفظ وكمّل'; }
+    };
+  }
+
+  async function run(file){
+    var key = await getKey(); if (!key) { keyStep(file); return; }
+    modal('أقرأ قائمة الأسعار…');
+    var sh; try { sh = await shrink(file); } catch (e) { body('<p class="ps-msg">ما كدرت أفتح الصورة. جرّب صورة ثانية.</p>'); foot('<button type="button" class="ps-no" onclick="document.getElementById(\'ps-x\').click()">إغلاق</button>'); return; }
+    ST.img = sh.url;
+    body('<img class="ps-thumb" alt="" src="' + sh.url + '"><div class="ps-spin"><i aria-hidden="true"></i><span>أقرأ الخط وأطابق المواد…<br><small style="opacity:.7">تاخذ ثواني</small></span></div>');
+    foot('<button type="button" class="ps-no" id="ps-cc">إلغاء</button>'); $i('ps-cc').onclick = close;
+    try {
+      var out = await gem(key, [{ text: prompt() }, { inlineData: { mimeType: 'image/jpeg', data: sh.b64 } }], SCHEMA);
+      if (!$i('ps-modal')) return;
+      var items = (out && out.items) || [];
+      ST.rows = items.filter(function(x){ return x && (x.written || x.id) && Number(x.price) > 0; }).map(function(x){
+        var p = products.find(function(q){ return String(q.id) === String(x.id); });
+        if (!p) { var n = nn(x.written); p = products.find(function(q){ return nn(q.name) === n; }) || null; }
+        return { written: String(x.written || ''), price: Math.round(Number(x.price)), pid: p ? String(p.id) : '', sure: !!x.sure && !!p, on: !!p };
+      });
+      review();
+    } catch (e) {
+      if (!$i('ps-modal')) return;
+      var msg = { badkey: 'مفتاح الذكاء ما يشتغل. احذفه من الإعدادات وحط واحد جديد.', quota: 'خلص الحد المجاني لهسه. جرّب بعد شوية.', net: 'ماكو إنترنت. تأكد من الاتصال وجرّب مرة ثانية.' }[e && e.message] || 'ما كدرت أقرأ الصورة. صوّرها أقرب وبضوء أوضح وجرّب مرة ثانية.';
+      body('<img class="ps-thumb" alt="" src="' + sh.url + '"><p class="ps-msg">' + E(msg) + '</p>');
+      foot('<button type="button" class="ps-go" id="ps-again">صورة ثانية</button><button type="button" class="ps-no" id="ps-cc2">إغلاق</button>');
+      $i('ps-cc2').onclick = close; $i('ps-again').onclick = function(){ close(); pick(); };
+      if (e && e.message === 'badkey') { $i('ps-again').textContent = 'حط مفتاح جديد'; $i('ps-again').onclick = function(){ LS.set('alwa_gem_key', ''); try { localStorage.removeItem('alwa_gem_key'); } catch (x) {} keyStep(file); }; }
+    }
+  }
+
+  function opts(sel){
+    var a = products.slice().sort(function(x, y){ return String(x.name).localeCompare(String(y.name), 'ar'); });
+    return '<option value="">— ما مطابق (اختر مادة) —</option>' + a.map(function(p){ return '<option value="' + E(p.id) + '"' + (String(p.id) === sel ? ' selected' : '') + '>' + E(p.name) + '</option>'; }).join('') + '<option value="__new">➕ أضفها مادة جديدة</option>';
+  }
+  function tag(r){
+    if (r.pid === '__new') return '<span class="ps-tag nw">جديدة</span>';
+    var p = products.find(function(q){ return String(q.id) === r.pid; }); if (!p) return '';
+    var o = Math.round(Number(p.defaultPrice) || 0), t = '';
+    if (p.locked) t += '<span class="ps-tag lk">🔒 مقفول</span>';
+    if (r.price > o) t += '<span class="ps-tag up">↑ زاد</span>'; else if (r.price < o) t += '<span class="ps-tag dn">↓ نزل</span>'; else t += '<span class="ps-tag eq">نفسه</span>';
+    return t;
+  }
+  function count(){ return ST.rows.filter(function(r){ return r.on && r.pid; }).length; }
+  function review(){
+    var t = $i('ps-t'); if (t) t.textContent = 'راجع الأسعار قبل الحفظ';
+    var matched = ST.rows.filter(function(r){ return r.pid; }).length, miss = ST.rows.length - matched;
+    var h = '<img class="ps-thumb" alt="" src="' + ST.img + '">'
+      + '<div class="ps-sum">لگيت ' + ST.rows.length + ' سطر: ' + matched + ' مطابق' + (miss ? ' · ' + miss + ' يحتاج تختار له مادة' : '') + '</div>'
+      + '<p class="ps-msg">الأصفر يعني مو متأكد، تأكد منه. تكدر تغيّر المادة أو السعر قبل الحفظ.</p>';
+    if (!ST.rows.length) h += '<p class="ps-msg">ما لگيت أسعار بالصورة. صوّرها أقرب وبضوء أوضح.</p>';
+    h += ST.rows.map(function(r, i){
+      var p = products.find(function(q){ return String(q.id) === r.pid; }), o = p ? Math.round(Number(p.defaultPrice) || 0) : null;
+      return '<div class="ps-row' + (!r.sure ? ' warn' : '') + (!r.on ? ' off' : '') + (o === r.price ? ' ps-same' : '') + '" data-i="' + i + '">'
+        + '<input type="checkbox" aria-label="تحديث هذا السطر" data-k="on"' + (r.on ? ' checked' : '') + (r.pid ? '' : ' disabled') + '>'
+        + '<div style="min-width:0"><select class="ps-sel" data-k="pid" aria-label="المادة">' + opts(r.pid) + '</select><div class="ps-w">مكتوب: «' + E(r.written) + '» ' + tag(r) + '</div></div>'
+        + '<div class="ps-pr">' + (o != null ? '<span class="ps-old">' + money(o) + '</span>' : '') + '<input class="ps-new" data-k="price" inputmode="numeric" aria-label="السعر الجديد" value="' + r.price + '"></div></div>';
+    }).join('');
+    body(h);
+    foot('<button type="button" class="ps-go" id="ps-save">حفظ الأسعار (' + count() + ')</button><button type="button" class="ps-no" id="ps-cc3">إلغاء</button>');
+    $i('ps-cc3').onclick = close; $i('ps-save').onclick = apply; $i('ps-save').disabled = !count();
+    $i('ps-body').querySelectorAll('.ps-row').forEach(function(row){
+      var i = +row.dataset.i;
+      row.querySelector('[data-k=on]').onchange = function(){ ST.rows[i].on = this.checked; row.classList.toggle('off', !this.checked); upd(); };
+      row.querySelector('[data-k=price]').oninput = function(){ var v = Math.round(parseFloat(String(this.value).replace(/[٠-٩]/g, function(d){ return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^\d.]/g, '')) || 0); ST.rows[i].price = v; };
+      row.querySelector('[data-k=price]').onchange = function(){ review(); };
+      row.querySelector('[data-k=pid]').onchange = function(){ ST.rows[i].pid = this.value; ST.rows[i].on = !!this.value; ST.rows[i].sure = true; review(); };
+    });
+  }
+  function upd(){ var b = $i('ps-save'); if (b) { b.textContent = 'حفظ الأسعار (' + count() + ')'; b.disabled = !count(); } }
+  function apply(){
+    var ch = 0, nw = 0, now = Date.now();
+    ST.rows.forEach(function(r, k){
+      if (!r.on || !r.pid || !(r.price > 0)) return;
+      if (r.pid === '__new') {
+        var nm = String(r.written || '').trim(); if (!nm) return;
+        products.push({ id: now + k, name: nm, category: 'vegetable', defaultPrice: r.price, icon: '🥦', upd: now }); nw++; return;
+      }
+      var p = products.find(function(q){ return String(q.id) === r.pid; }); if (!p) return;
+      if (Math.round(Number(p.defaultPrice) || 0) !== r.price) { p.defaultPrice = r.price; p.upd = now; ch++; }
+    });
+    try { saveData(); } catch (e) {}
+    try { renderProductsGrid(); } catch (e) {} try { renderManageProducts(); } catch (e) {}
+    close();
+    try { showToast('تم تحديث ' + ch + ' سعر' + (nw ? ' وإضافة ' + nw + ' مادة' : '') + ' ✓'); } catch (e) {}
+  }
+
+  function pick(){
+    var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
+    inp.onchange = function(){ var f = inp.files && inp.files[0]; inp.remove(); if (f) run(f); };
+    document.body.appendChild(inp); inp.click();
+  }
+  window.priceFromPhoto = pick; window.__psRun = run;
+
+  function ui(){
+    if ($i('ps-wrap')) return;
+    var b1 = $i('scan-btn'); if (!b1) return;
+    var bar = b1.parentElement; css();
+    var w = document.createElement('div'); w.id = 'ps-wrap'; w.className = 'nt-skip';
+    w.innerHTML = '<button type="button" id="ps-cta"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="13" width="38" height="28" rx="7"/><path d="M17 13l3-5h8l3 5"/><circle cx="24" cy="27" r="7.5"/><path d="M36 8l1.5 3 3 1.5-3 1.5L36 17l-1.5-3-3-1.5 3-1.5z" fill="currentColor" stroke="none"/></svg><span>حدّث الأسعار من صورة<small>صوّر ورقة الأسعار أو اختار صورة، وهو يقرأها ويغيّر الأسعار</small></span></button>'
+      + '<div id="ps-tools"><button type="button" id="ps-add" class="bg-brand-600 text-white">＋ مادة جديدة</button><button type="button" id="ps-codes" class="bg-slate-200 text-slate-800">كمّل الأرقام</button></div>';
+    bar.parentElement.insertBefore(w, bar);
+    bar.style.setProperty('display', 'none', 'important');
+    $i('ps-cta').onclick = pick;
+    $i('ps-add').onclick = function(){ try { openAddProductModal(); } catch (e) {} };
+    $i('ps-codes').onclick = function(){ try { autoFillCodes(); } catch (e) {} };
+    var row = bar.parentElement; row.style.flexWrap = 'wrap'; row.style.gap = '12px';
+  }
+  function init(){ ui(); var n = 0, t = setInterval(function(){ ui(); if ($i('ps-wrap') || ++n > 20) clearInterval(t); }, 800); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
 </body></html>
