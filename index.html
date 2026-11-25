@@ -8126,7 +8126,7 @@ ${context()}`;
   // ===== تحديث الأسعار بالصوت (بدون مفتاح) =====
   function parseSpoken(text){
     var w;
-    try { w = ai2Norm(String(text || '').replace(/هزار/g, ' الف ')).split(' ').filter(Boolean); } catch (e) { return []; }
+    try { w = ai2Norm(String(text || '').replace(/هزار/g, ' الف ').replace(/(^|[\s،,و])(متين|مئتين|ميتين)(?=$|[\s،,])/g, '$1ميتين').replace(/(^|[\s،,و])(مية|ميه|مئة|مائة)(?=$|[\s،,])/g, '$1ميه')).split(' ').filter(Boolean); } catch (e) { return []; }
     var rows = [], i = 0, seen = {};
     while (i < w.length) {
       var m = null; try { m = ai2Match(w, i); } catch (e) {}
@@ -8208,6 +8208,50 @@ ${context()}`;
     var row = bar.parentElement; row.style.flexWrap = 'wrap'; row.style.gap = '12px';
   }
   function init(){ ui(); var n = 0, t = setInterval(function(){ ui(); if ($i('ps-wrap') || ++n > 20) clearInterval(t); }, 800); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+<script>
+(function(){
+  // تحسينات حسب قواعد web-design-guidelines: لمس أسرع، أسماء مقروءة، أرقام مرتبة، الوضع الليلي
+  var st = document.createElement('style'); st.id = 'wdg-polish';
+  st.textContent = 'html{touch-action:manipulation;-webkit-tap-highlight-color:transparent}'
+    + 'html.dark{color-scheme:dark}'
+    + '.fixed.inset-0,#ps-body,#ch-panel,#modal-ai>div{overscroll-behavior:contain}'
+    + '#grand-total,#cart-total,#p-grandtotal,#p-subtotal,#p-commission,.font-mono,#products-grid .font-mono,.ps-new,.cart-in,#inv-recv,#inv-debt{font-variant-numeric:tabular-nums}'
+    + 'button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #22c55e;outline-offset:2px}'
+    + 'h1,h2,h3{text-wrap:balance}';
+  document.head.appendChild(st);
+
+  function themeColor(){
+    var m = document.querySelector('meta[name=theme-color]'); if (!m) return;
+    var d = document.documentElement.classList.contains('dark');
+    var want = d ? '#0b1220' : '#14532d'; if (m.content !== want) m.content = want;
+  }
+  function label(root){
+    (root || document).querySelectorAll('button:not([aria-label])').forEach(function(b){
+      if ((b.textContent || '').trim()) return;
+      var t = b.title || '';
+      if (!t) { var i = b.querySelector('i,svg'); var c = i ? String(i.className && i.className.baseVal != null ? i.className.baseVal : i.className) : ''; t = /xmark|close|times/.test(c) ? 'إغلاق' : /sync|rotate|refresh/.test(c) ? 'تحديث' : /trash/.test(c) ? 'حذف' : /pen|edit/.test(c) ? 'تعديل' : /plus/.test(c) ? 'إضافة' : /minus/.test(c) ? 'إنقاص' : ''; }
+      if (/sync-btn/.test(b.className) && !t) t = 'مزامنة';
+      if (t) b.setAttribute('aria-label', t);
+    });
+    (root || document).querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]):not([aria-label]),select:not([aria-label]),textarea:not([aria-label])').forEach(function(el){
+      if (el.labels && el.labels.length) return;
+      var t = el.placeholder || el.title || '';
+      if (!t) { var p = el.parentElement; for (var k = 0; k < 3 && p && !t; k++, p = p.parentElement) { var l = p.querySelector('label'); if (l && !l.contains(el) && (l.textContent || '').trim()) t = l.textContent.trim().slice(0, 60); } }
+      if (t) el.setAttribute('aria-label', t);
+    });
+    ['search-product', 'code-product', 'manage-search'].forEach(function(id){ var e = document.getElementById(id); if (e) { e.setAttribute('autocomplete', 'off'); e.setAttribute('autocorrect', 'off'); e.setAttribute('autocapitalize', 'off'); e.spellcheck = false; } });
+    document.querySelectorAll('input[inputmode=decimal],input[inputmode=numeric]').forEach(function(e){ if (!e.hasAttribute('autocomplete')) e.setAttribute('autocomplete', 'off'); e.spellcheck = false; });
+  }
+  function run(){ try { themeColor(); label(); } catch (e) {} }
+  function init(){
+    run();
+    try { new MutationObserver(function(){ themeColor(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] }); } catch (e) {}
+    var n = 0, t = setInterval(function(){ run(); if (++n > 10) clearInterval(t); }, 1500);
+    document.addEventListener('click', function(){ setTimeout(run, 400); }, true);
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
