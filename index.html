@@ -8083,7 +8083,7 @@ ${context()}`;
   function review(){
     var t = $i('ps-t'); if (t) t.textContent = 'راجع الأسعار قبل الحفظ';
     var matched = ST.rows.filter(function(r){ return r.pid; }).length, miss = ST.rows.length - matched;
-    var h = '<img class="ps-thumb" alt="" src="' + ST.img + '">'
+    var h = (ST.img ? '<img class="ps-thumb" alt="" src="' + ST.img + '">' : '')
       + '<div class="ps-sum">لگيت ' + ST.rows.length + ' سطر: ' + matched + ' مطابق' + (miss ? ' · ' + miss + ' يحتاج تختار له مادة' : '') + '</div>'
       + '<p class="ps-msg">الأصفر يعني مو متأكد، تأكد منه. تكدر تغيّر المادة أو السعر قبل الحفظ.</p>';
     if (!ST.rows.length) h += '<p class="ps-msg">ما لگيت أسعار بالصورة. صوّرها أقرب وبضوء أوضح.</p>';
@@ -8123,6 +8123,68 @@ ${context()}`;
     try { showToast('تم تحديث ' + ch + ' سعر' + (nw ? ' وإضافة ' + nw + ' مادة' : '') + ' ✓'); } catch (e) {}
   }
 
+  // ===== تحديث الأسعار بالصوت (بدون مفتاح) =====
+  function parseSpoken(text){
+    var w;
+    try { w = ai2Norm(String(text || '').replace(/هزار/g, ' الف ')).split(' ').filter(Boolean); } catch (e) { return []; }
+    var rows = [], i = 0, seen = {};
+    while (i < w.length) {
+      var m = null; try { m = ai2Match(w, i); } catch (e) {}
+      if (!m) { i++; continue; }
+      var j = i + m.len, price = null;
+      for (var k = j; k < Math.min(w.length, j + 6); k++) {
+        if (/^\d+(\.\d+)?$/.test(w[k])) { price = parseFloat(w[k]); j = k + 1; break; }
+        var m2 = null; try { m2 = ai2Match(w, k); } catch (e) {} if (m2 && m2.sc >= 0.9) break;
+      }
+      if (price != null && price > 0) {
+        if (price < 100) price = price * 1000;
+        var pid = String(m.p.id), r = { written: w.slice(i, i + m.len).join(' '), price: Math.round(price), pid: pid, sure: m.sc >= 0.9, on: true };
+        if (seen[pid] != null) rows[seen[pid]] = r; else { seen[pid] = rows.length; rows.push(r); }
+        i = j;
+      } else i += m.len;
+    }
+    return rows;
+  }
+  var REC = null, LISTEN = false;
+  function stopRec(){ LISTEN = false; if (REC) { try { REC.onend = null; REC.abort(); } catch (e) {} } REC = null; var b = $i('ps-mic'); if (b) { b.classList.remove('on'); b.querySelector('span').textContent = 'اضغط وتكلم'; } }
+  function startRec(){
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return false;
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var base = ($i('ps-txt').value || '').trim();
+    var r = new SR(); r.lang = 'ar-IQ'; r.interimResults = true; r.continuous = !ios; r.maxAlternatives = 1;
+    r.onresult = function(e){
+      var fin = '', tmp = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) { var s = e.results[i][0].transcript; if (e.results[i].isFinal) fin += ' ' + s; else tmp += ' ' + s; }
+      if (fin) { base = (base + ' ' + fin).trim(); }
+      $i('ps-txt').value = (base + (tmp ? ' ' + tmp : '')).trim(); live();
+    };
+    r.onerror = function(e){ if (e && (e.error === 'not-allowed' || e.error === 'service-not-allowed')) { stopRec(); var m = $i('ps-vm'); if (m) m.textContent = 'المتصفح منع المايك. اسمح للمايك من الإعدادات، أو اكتب الأسعار بالخانة.'; } };
+    r.onend = function(){ if (LISTEN) { setTimeout(function(){ if (LISTEN) { try { base = ($i('ps-txt').value || '').trim(); r.start(); } catch (e) { stopRec(); } } }, 150); } };
+    try { r.start(); } catch (e) { return false; }
+    REC = r; LISTEN = true; var b = $i('ps-mic'); b.classList.add('on'); b.querySelector('span').textContent = 'أسمعك… اضغط حتى توقف';
+    return true;
+  }
+  function live(){
+    var rows = parseSpoken($i('ps-txt').value), el = $i('ps-live'); if (!el) return;
+    el.innerHTML = rows.length ? rows.map(function(r){ var p = products.find(function(q){ return String(q.id) === r.pid; }); return '<span class="ps-chip">' + E(p ? p.name : r.written) + ' <b>' + money(r.price) + '</b></span>'; }).join('') : '<span style="opacity:.6;font-size:12px;font-weight:700">قول اسم المادة وبعدها سعرها…</span>';
+    var g = $i('ps-vgo'); if (g) { g.disabled = !rows.length; g.textContent = rows.length ? 'راجع ' + rows.length + ' سعر' : 'راجع الأسعار'; }
+  }
+  function voice(){
+    modal('حدّث الأسعار بالصوت');
+    if (!$i('ps-vcss')) { var s = document.createElement('style'); s.id = 'ps-vcss'; s.textContent = '#ps-mic{display:flex;flex-direction:column;align-items:center;gap:8px;margin:6px auto 12px;font-weight:900;font-size:14px}#ps-mic i{width:92px;height:92px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#16a34a,#0f766e);color:#fff;box-shadow:0 10px 24px -8px rgba(15,118,110,.8);transition:transform .15s}#ps-mic i svg{width:42px;height:42px}#ps-mic.on i{background:linear-gradient(135deg,#dc2626,#b91c1c);animation:psp 1.2s ease-in-out infinite}@keyframes psp{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.55)}50%{box-shadow:0 0 0 16px rgba(220,38,38,0)}}@media (prefers-reduced-motion:reduce){#ps-mic.on i{animation:none}}#ps-mic:active i{transform:scale(.94)}#ps-txt{width:100%;min-height:90px;padding:10px;border-radius:12px;border:2px solid rgba(148,163,184,.5);font-weight:800;font-size:15px;background:#fff;color:#0f172a;line-height:1.7}#ps-live{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.ps-chip{font-size:12px;font-weight:800;padding:5px 10px;border-radius:999px;background:rgba(22,163,74,.14)}.ps-chip b{font-variant-numeric:tabular-nums}'; document.head.appendChild(s); }
+    var has = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    body((has ? '<button type="button" id="ps-mic" aria-label="تسجيل الصوت"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></i><span>اضغط وتكلم</span></button>' : '')
+      + '<p class="ps-msg" id="ps-vm">' + (has ? 'گول مثلاً: «طماطم ألف وأربعمية، خيار سبعمية، بصل ألف ومتين وخمسين». تكدر هم تكتب أو تصلّح بالخانة.' : 'هذا المتصفح ما يدعم الصوت، بس تكدر تكتب: «طماطم 1400 خيار 700…».') + '</p>'
+      + '<textarea id="ps-txt" aria-label="الأسعار" placeholder="طماطم 1400، خيار 700…"></textarea><div id="ps-live"></div>');
+    foot('<button type="button" class="ps-go" id="ps-vgo" disabled>راجع الأسعار</button><button type="button" class="ps-no" id="ps-vc">إلغاء</button>');
+    $i('ps-vc').onclick = function(){ stopRec(); close(); };
+    $i('ps-x').onclick = function(){ stopRec(); close(); };
+    $i('ps-txt').oninput = live; live();
+    if (has) $i('ps-mic').onclick = function(){ if (LISTEN) stopRec(); else if (!startRec()) { $i('ps-vm').textContent = 'ما كدرت أشغّل المايك. اكتب الأسعار بالخانة.'; } };
+    $i('ps-vgo').onclick = function(){ stopRec(); ST.rows = parseSpoken($i('ps-txt').value); ST.img = ''; if (!ST.rows.length) return; review(); };
+  }
+  window.priceByVoice = voice;
+
   function pick(){
     var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
     inp.onchange = function(){ var f = inp.files && inp.files[0]; inp.remove(); if (f) run(f); };
@@ -8136,10 +8198,11 @@ ${context()}`;
     var bar = b1.parentElement; css();
     var w = document.createElement('div'); w.id = 'ps-wrap'; w.className = 'nt-skip';
     w.innerHTML = '<button type="button" id="ps-cta"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="13" width="38" height="28" rx="7"/><path d="M17 13l3-5h8l3 5"/><circle cx="24" cy="27" r="7.5"/><path d="M36 8l1.5 3 3 1.5-3 1.5L36 17l-1.5-3-3-1.5 3-1.5z" fill="currentColor" stroke="none"/></svg><span>حدّث الأسعار من صورة<small>صوّر ورقة الأسعار أو اختار صورة، وهو يقرأها ويغيّر الأسعار</small></span></button>'
-      + '<div id="ps-tools"><button type="button" id="ps-add" class="bg-brand-600 text-white">＋ مادة جديدة</button><button type="button" id="ps-codes" class="bg-slate-200 text-slate-800">كمّل الأرقام</button></div>';
+      + '<div id="ps-tools"><button type="button" id="ps-voice" class="bg-emerald-100 text-emerald-900">🎤 بالصوت</button><button type="button" id="ps-add" class="bg-brand-600 text-white">＋ مادة جديدة</button><button type="button" id="ps-codes" class="bg-slate-200 text-slate-800">كمّل الأرقام</button></div>';
     bar.parentElement.insertBefore(w, bar);
     bar.style.setProperty('display', 'none', 'important');
     $i('ps-cta').onclick = pick;
+    $i('ps-voice').onclick = voice;
     $i('ps-add').onclick = function(){ try { openAddProductModal(); } catch (e) {} };
     $i('ps-codes').onclick = function(){ try { autoFillCodes(); } catch (e) {} };
     var row = bar.parentElement; row.style.flexWrap = 'wrap'; row.style.gap = '12px';
