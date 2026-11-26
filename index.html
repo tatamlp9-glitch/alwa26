@@ -8264,4 +8264,44 @@ ${context()}`;
   document.head.appendChild(s);
 })();
 </script>
+<script>
+(function(){
+  // تلوين سعر المادة بالسلة إذا يختلف عن سعرها بقسم المواد
+  var s = document.createElement('style'); s.id = 'pdiff-css';
+  s.textContent = '#cart-items-body .cart-in.pdiff{border-color:#f59e0b !important;background:#fef3c7 !important;color:#78350f !important;box-shadow:0 0 0 3px rgba(245,158,11,.35) !important}'
+    + '#cart-items-body .cart-in.pdiff.up{border-color:#ef4444 !important;background:#fee2e2 !important;color:#7f1d1d !important;box-shadow:0 0 0 3px rgba(239,68,68,.3) !important}'
+    + '#cart-items-body .cart-in.pdiff.dn{border-color:#3b82f6 !important;background:#dbeafe !important;color:#1e3a8a !important;box-shadow:0 0 0 3px rgba(59,130,246,.3) !important}'
+    + '.pdiff-tag{display:block;margin-top:3px;font-size:11px;font-weight:900;line-height:1.3;text-align:center;border-radius:8px;padding:2px 4px}'
+    + '.pdiff-tag.up{color:#b91c1c;background:rgba(239,68,68,.14)}.pdiff-tag.dn{color:#1d4ed8;background:rgba(59,130,246,.14)}'
+    + 'html.dark .pdiff-tag.up{color:#fca5a5}html.dark .pdiff-tag.dn{color:#93c5fd}';
+  document.head.appendChild(s);
+  function fmtN(n){ return Number(n || 0).toLocaleString('en-US'); }
+  function mark(){
+    try {
+      var body = document.getElementById('cart-items-body'); if (!body || typeof cart === 'undefined') return;
+      body.querySelectorAll('input[data-field=price]').forEach(function(el){
+        var i = +el.dataset.idx, it = cart[i]; if (!it) return;
+        var pr = products.find(function(x){ return x.id === it.id; }) || products.find(function(x){ return x.name === (it.baseName || it.name); });
+        var lab = el.closest('label'), tag = lab && lab.querySelector('.pdiff-tag');
+        var v = Math.round(parseFloat(el.value) || 0), d = pr ? Math.round(Number(pr.defaultPrice) || 0) : 0;
+        var diff = pr && v > 0 && d > 0 && v !== d;
+        el.classList.toggle('pdiff', !!diff); el.classList.toggle('up', !!diff && v > d); el.classList.toggle('dn', !!diff && v < d);
+        if (diff) {
+          if (!tag && lab) { tag = document.createElement('span'); tag.className = 'pdiff-tag'; lab.appendChild(tag); }
+          tag.className = 'pdiff-tag ' + (v > d ? 'up' : 'dn');
+          tag.textContent = (v > d ? '↑ أغلى' : '↓ أرخص') + ' · بالمواد ' + fmtN(d);
+          el.title = 'سعرها بالمواد ' + fmtN(d);
+        } else { if (tag) tag.remove(); el.removeAttribute('title'); }
+      });
+    } catch (e) {}
+  }
+  window.markPriceDiff = mark;
+  function wrap(){
+    if (typeof window.renderCart === 'function' && !window.renderCart._pd) { var o = window.renderCart; var w = function(){ var r = o.apply(this, arguments); mark(); return r; }; w._pd = 1; window.renderCart = w; }
+    if (typeof window.liveUpdate === 'function' && !window.liveUpdate._pd) { var o2 = window.liveUpdate; var w2 = function(i, f){ var r = o2.apply(this, arguments); if (f === 'price') mark(); return r; }; w2._pd = 1; window.liveUpdate = w2; }
+  }
+  function init(){ wrap(); mark(); setTimeout(function(){ wrap(); mark(); }, 1500); document.addEventListener('input', function(e){ if (e.target && e.target.dataset && e.target.dataset.field === 'price') setTimeout(mark, 0); }, true); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
 </body></html>
