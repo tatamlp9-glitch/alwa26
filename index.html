@@ -8255,4 +8255,13 @@ ${context()}`;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
+<script>
+(function(){
+  // السلة تكبر ويا المواد بالجوال (تشوف كل المواد وتنزل بالصفحة)، وأكبر باللابتوب
+  var s = document.createElement('style'); s.id = 'cart-big';
+  s.textContent = '@media (max-width:1023px) and (min-height:541px){#screen-pos > div:has(> #cart-wrap){overflow:visible !important;height:max-content !important;min-height:75vh !important;max-height:none !important}#cart-wrap{flex:0 0 auto !important;max-height:none !important;min-height:150px !important;overflow:visible !important}}'
+    + '@media (min-width:1024px){#cart-wrap{min-height:46vh !important}}';
+  document.head.appendChild(s);
+})();
+</script>
 </body></html>
