@@ -8338,4 +8338,24 @@ ${context()}`;
   hint(); try { if (typeof calcRender === 'function' && visible()) calcRender(); } catch (e) {}
 })();
 </script>
+<script>
+/* tabkeys: Z الكاشير · X الحاسبة · C التخزين */
+(function(){
+  var MAP = { KeyZ: 'pos', KeyX: 'calc', KeyC: 'archive' };
+  document.addEventListener('keydown', function(e){
+    try {
+      if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.repeat) return;
+      var tab = MAP[e.code]; if (!tab || typeof switchTab !== 'function') return;
+      var lg = document.getElementById('screen-login'); if (lg && lg.offsetParent !== null) return;
+      if (document.querySelector('.fixed[id^="modal-"]:not(.hidden)')) return;
+      var a = document.activeElement, tag = a && a.tagName;
+      if (a && (tag === 'TEXTAREA' || tag === 'SELECT' || a.isContentEditable)) return;
+      if (tag === 'INPUT') { var im = a.getAttribute('inputmode'); if (!(im === 'decimal' || im === 'numeric' || a.type === 'number' || a.classList.contains('cart-in'))) return; }
+      var tb = document.getElementById('tab-btn-' + tab); if (tb && (tb.classList.contains('hidden') || tb.style.display === 'none' || tb.disabled)) return;
+      e.preventDefault(); e.stopPropagation();
+      switchTab(tab);
+    } catch (x) {}
+  }, true);
+})();
+</script>
 </body></html>
