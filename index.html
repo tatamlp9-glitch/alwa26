@@ -8358,4 +8358,44 @@ ${context()}`;
   }, true);
 })();
 </script>
+<script>
+/* ordready: الطلبيات الجاهزة بسطر ثاني أخضر عند الكاشير */
+(function(){
+  var st = document.createElement('style');
+  st.textContent = '#orders-ready{background:#ecfdf5;border-bottom:1px solid #6ee7b7}.dark #orders-ready{background:rgba(16,185,129,.14);border-bottom-color:rgba(16,185,129,.45)}#orders-ready .or-lbl{color:#047857}.dark #orders-ready .or-lbl{color:#6ee7b7}';
+  document.head.appendChild(st);
+  function ensureRow(){
+    var r = document.getElementById('orders-ready'); if (r) return r;
+    var oc = document.getElementById('orders-cart'); if (!oc) return null;
+    r = document.createElement('div'); r.id = 'orders-ready';
+    r.className = 'shrink-0 flex items-center gap-1.5 px-2 py-1.5 overflow-x-auto hidden';
+    r.innerHTML = '<span class="or-lbl text-xs font-bold whitespace-nowrap shrink-0"><i class="fa-solid fa-circle-check ml-1"></i> جاهزة (<span id="or-count">0</span>)</span><div id="or-body" class="flex items-center gap-1.5"></div>';
+    oc.parentNode.insertBefore(r, oc.nextSibling);
+    return r;
+  }
+  function chip(o){
+    var p = orderProgress(o);
+    var act = carts[activeCart] && carts[activeCart].orderId === o.id;
+    var tip = esc(o.items.map(function(i){ return i.name + (qty(i) ? ' (' + qty(i) + ')' : ''); }).join('، '));
+    var cls = p.full ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-amber-400 bg-white text-slate-800';
+    var bdg = p.full ? 'bg-white/25' : 'bg-amber-100 text-amber-800';
+    return '<div class="flex items-stretch rounded-lg overflow-hidden border shrink-0 ' + (act ? 'ring-4 ring-sky-500 ' : '') + cls + '">' +
+      '<button onclick="orderToInvoice(\'' + o.id + '\')" class="px-3 py-1.5 text-xs font-bold whitespace-nowrap" title="' + tip + '">' + (p.full ? '✓ ' : '') + (o.msg ? '📩 ' : '') + esc(String(o.customer).slice(0, 12)) + ' <span class="mr-1 px-1.5 rounded-full text-[10px] ' + bdg + '">' + p.d + '/' + p.t + '</span></button>' +
+      '<button onclick="toggleSent(\'' + o.id + '\')" class="px-1.5 text-xs opacity-70 hover:opacity-100" title="إزالة من السلة"><i class="fa-solid fa-xmark"></i></button></div>';
+  }
+  window.renderPosOrders = function(){
+    var body = document.getElementById('oc-body'); if (!body) return;
+    var all = orders.filter(function(o){ return o.sent && !o.invoiced; }).sort(function(a, b){ return (b.created || 0) - (a.created || 0); });
+    var pend = all.filter(function(o){ return !orderProgress(o).full; });
+    var rdy = all.filter(function(o){ return orderProgress(o).full; });
+    var c = document.getElementById('oc-count'); if (c) c.textContent = pend.length;
+    body.innerHTML = pend.length ? pend.map(chip).join('') : '<span class="text-[11px] text-amber-700 whitespace-nowrap">' + (rdy.length ? 'ماكو طلبية قيد التجهيز' : 'فارغة') + '</span>';
+    var row = ensureRow(); if (!row) return;
+    document.getElementById('or-count').textContent = rdy.length;
+    document.getElementById('or-body').innerHTML = rdy.map(chip).join('');
+    row.classList.toggle('hidden', !rdy.length);
+  };
+  try { renderPosOrders(); } catch (e) {}
+})();
+</script>
 </body></html>
