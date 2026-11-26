@@ -8304,4 +8304,38 @@ ${context()}`;
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
+<script>
+/* calcshort: A = السعر · S = الكيلو · العمولة مشغلة افتراضياً */
+(function(){
+  try { if (typeof calcData === 'object' && calcData) { calcData.com = true; calcSave(); } } catch (e) {}
+  var oc = window.calcClear;
+  if (typeof oc === 'function') window.calcClear = function(){ oc.apply(this, arguments); try { calcData.com = true; calcSave(); calcRender(); } catch (e) {} };
+  function visible(){ var s = document.getElementById('screen-calc'); return s && !s.classList.contains('hidden') && s.offsetParent !== null; }
+  function rowEls(){ var c = document.getElementById('calc-rows'); return c ? Array.prototype.filter.call(c.children, function(x){ return x.tagName === 'DIV'; }) : []; }
+  document.addEventListener('keydown', function(e){
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.code !== 'KeyA' && e.code !== 'KeyS') return;
+    if (!visible()) return;
+    var a = document.activeElement, tag = a && a.tagName;
+    var typing = a && (tag === 'TEXTAREA' || a.isContentEditable || (tag === 'INPUT' && a.getAttribute('inputmode') !== 'decimal' && a.type !== 'number'));
+    if (typing) return;
+    var rows = rowEls(); if (!rows.length) return;
+    var row = (a && a.closest) ? a.closest('#calc-rows > div') : null;
+    if (!row) row = rows[rows.length - 1];
+    var t = e.code === 'KeyA' ? row.querySelector('input[id^="calc-p"]') : row.querySelector('input[oninput*="\'w\'"]');
+    if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    t.focus(); try { t.select(); } catch (x) {}
+  }, true);
+  function hint(){
+    var c = document.getElementById('calc-rows'); if (!c || document.getElementById('calc-kb-hint')) return;
+    if (!matchMedia('(min-width:761px)').matches) return;
+    var h = document.createElement('div'); h.id = 'calc-kb-hint';
+    h.style.cssText = 'font-size:12px;font-weight:700;color:#64748b;margin:0 0 6px;display:flex;gap:10px;align-items:center';
+    h.innerHTML = '<span>⌨️ اختصارات:</span><span><kbd style="border:1px solid #cbd5e1;border-radius:5px;padding:0 6px;background:#f8fafc">A</kbd> السعر</span><span><kbd style="border:1px solid #cbd5e1;border-radius:5px;padding:0 6px;background:#f8fafc">S</kbd> الكيلو</span>';
+    c.parentNode.insertBefore(h, c);
+  }
+  hint(); try { if (typeof calcRender === 'function' && visible()) calcRender(); } catch (e) {}
+})();
+</script>
 </body></html>
