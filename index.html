@@ -8380,7 +8380,7 @@ ${context()}`;
     var box = document.getElementById('orders-list'); if (!box) return;
     var list = orders.slice();
     if (orderFilter !== 'all') { var want = { ready: 0, pending: 1, invoiced: 2 }[orderFilter]; list = list.filter(function(o){ return orderState(o) === want; }); }
-    if (!list.length) { box.innerHTML = emptyBox('clip', 'لا توجد طلبيات', 'اضغط «طلبية جديدة» للبدء'); return; }
+    if (!list.length) { box.innerHTML = emptyBox('clip', 'لا توجد طلبيات', 'اضغط «طلبية جديدة» للبدء'); sumBox(box); return; }
     var act = list.filter(function(o){ return orderState(o) !== 2; }).sort(function(a, b){ return orderState(a) - orderState(b) || ((b.created || 0) - (a.created || 0)); });
     var done = list.filter(function(o){ return orderState(o) === 2; }).sort(function(a, b){ return (b.upd || b.created || 0) - (a.upd || a.created || 0); });
     var h = groupsHTML(act);
@@ -8388,8 +8388,14 @@ ${context()}`;
       var shut = closed() && orderFilter !== 'invoiced';
       h += '<section class="pbox pbox-done lg:col-span-2"><div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-circle-check ml-1"></i> الطلبيات المخلصة</span><span class="text-xs font-bold flex items-center gap-2">' + done.length + ' طلبية · تمت الفوترة' + (orderFilter !== 'invoiced' ? ' <button type="button" class="od-tg" onclick="toggleDoneOrders()">' + (shut ? 'إظهار' : 'إخفاء') + '</button>' : '') + '</span></div>' + (shut ? '' : '<div class="tickets">' + done.map(function(o){ return ticketHTML(o, 'owner'); }).join('') + '</div>') + '</section>';
     }
-    box.innerHTML = h;
+    box.innerHTML = h; sumBox(box);
   };
+  function sumBox(box){
+    try {
+      if (!document.getElementById('orders-sum')) { var d = document.createElement('div'); d.id = 'orders-sum'; box.parentNode.insertBefore(d, box); }
+      if (typeof window.osumRender === 'function') window.osumRender();
+    } catch (e) { console.error(e); }
+  }
   try { refreshOrders(); } catch (e) {}
 })();
 </script>
