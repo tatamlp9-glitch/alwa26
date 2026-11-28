@@ -8712,4 +8712,23 @@ ${context()}`;
   document.addEventListener('click', function(e){ if (Date.now() - lastDrag < 500 && e.target.closest && e.target.closest('#is-carts')) { e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 </script>
+<script>
+/* numpad: أرقام الكيبورد الجانبي تشتغل حتى لو NumLock مطفي */
+(function(){
+  document.addEventListener('keydown', function(e){
+    try {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      var m = /^Numpad(\d|Decimal)$/.exec(e.code || ''); if (!m) return;
+      var ch = m[1] === 'Decimal' ? '.' : m[1];
+      if (e.key === ch || e.key === ',' || /^\d$/.test(e.key)) return;   // NumLock شغال: خليه طبيعي
+      var el = document.activeElement; if (!el) return;
+      var tag = el.tagName; if (!(tag === 'TEXTAREA' || (tag === 'INPUT' && /^(text|number|tel|search|)$/.test(el.type || '')))) return;
+      if (el.readOnly || el.disabled) return;
+      e.preventDefault(); e.stopPropagation();
+      try { var a = el.selectionStart, b = el.selectionEnd; el.setRangeText(ch, a, b, 'end'); } catch (x) { el.value = String(el.value || '') + ch; }
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (x) {}
+  }, true);
+})();
+</script>
 </body></html>
