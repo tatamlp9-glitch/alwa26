@@ -8565,7 +8565,9 @@ ${context()}`;
       var nm = (c.customer || '').trim(), label = nm ? esc(nm.slice(0, 14)) : 'مشتري ' + (k + 1);
       return '<button type="button" class="tc' + (on ? ' on' : '') + '" onclick="tcGo(' + i + ')">' + label + (n ? '<b>' + n + '</b>' : '') + '</button>';
     }).join('') + '<button type="button" class="tc nw" onclick="tcGo(-1)">＋ مشتري</button>';
-    var on = box.querySelector('.tc.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }
+    // نحرك الشريط بالعرض بس (scrollIntoView جان يحرك الشاشة كلها فوق وتحت وقت الكتابة)
+    var on = box.querySelector('.tc.on'), sw = document.getElementById('info-strip');
+    if (on && sw && draw._on !== activeCart) { draw._on = activeCart; try { var r = on.getBoundingClientRect(), q = sw.getBoundingClientRect(); if (r.left < q.left) sw.scrollLeft -= (q.left - r.left + 12); else if (r.right > q.right) sw.scrollLeft += (r.right - q.right + 12); } catch (e) {} }
   }
   window.tcGo = function(i){
     // الموبايل: ضغطتين بسرعة على الاسم = يرجع فوق · اللابتوب: ضغطة وحدة
@@ -8584,7 +8586,7 @@ ${context()}`;
   var rt = window.renderCartTabs;
   if (typeof rt === 'function') window.renderCartTabs = function(){ var r = rt.apply(this, arguments); try { draw(); } catch (e) {} return r; };
   var nameT = 0;
-  document.addEventListener('input', function(e){ if (e.target && e.target.id === 'customer-name') { clearTimeout(nameT); nameT = setTimeout(function(){ try { persistCarts(); draw(); } catch (x) {} }, 400); } }, true);
+  document.addEventListener('input', function(e){ if (e.target && e.target.id === 'customer-name') { clearTimeout(nameT); nameT = setTimeout(function(){ try { persistCarts(); var on = document.querySelector('#is-carts .tc.on'), v = (e.target.value || '').trim(); if (on && on.firstChild && on.firstChild.nodeType === 3) on.firstChild.nodeValue = v ? v.slice(0, 14) : 'مشتري'; } catch (x) {} }, 400); } }, true);
   try { draw(); } catch (e) {}
 
   /* تصحيح وقت الأذان: دقائق زيادة/نقصان لكل صلاة */
