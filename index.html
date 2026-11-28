@@ -8591,15 +8591,16 @@ ${context()}`;
 /* scrollbar: الأسماء تطلع لما تنزل والشريط اللي فوق يختفي + عداد الأذان بالثواني */
 (function(){
   var st = document.createElement('style');
-  st.textContent = 'body:not(.pos-down) #is-carts{display:none}body.pos-down header.alwa-hd{display:none !important}#is-pray{font-variant-numeric:tabular-nums}';
+  st.textContent = 'header.alwa-hd{max-height:240px;transition:max-height .42s cubic-bezier(.2,.8,.2,1),opacity .32s ease,transform .42s cubic-bezier(.2,.8,.2,1),padding .42s cubic-bezier(.2,.8,.2,1)}header.alwa-hd.hd-anim,body.pos-down header.alwa-hd{overflow:hidden}body.pos-down header.alwa-hd{max-height:0 !important;padding-top:0 !important;padding-bottom:0 !important;opacity:0;transform:translateY(-24px)}#is-carts{max-width:3000px;transition:max-width .5s ease,opacity .35s ease .08s,transform .4s cubic-bezier(.2,.8,.2,1) .05s}body:not(.pos-down) #is-carts{max-width:0;opacity:0;transform:translateY(-12px);overflow:hidden;pointer-events:none}#is-pray{font-variant-numeric:tabular-nums}@media (prefers-reduced-motion:reduce){header.alwa-hd,#is-carts{transition:none}}';
   document.head.appendChild(st);
   function hdr(){ var hs = document.querySelectorAll('header'); for (var i = 0; i < hs.length; i++) { if (hs[i].offsetParent !== null || hs[i].classList.contains('alwa-hd')) return hs[i]; } return null; }
   var down = false;
   function setDown(v){
     if (v === down) return; down = v;
-    var h = hdr(); if (h) h.classList.add('alwa-hd');
+    var h = hdr(); if (h) { h.classList.add('alwa-hd'); h.classList.add('hd-anim'); clearTimeout(h._hdT); h._hdT = setTimeout(function(){ h.classList.remove('hd-anim'); }, 480); }
     document.body.classList.toggle('pos-down', v);
   }
+  setTimeout(function(){ var h = hdr(); if (h) h.classList.add('alwa-hd'); }, 1500);
   document.addEventListener('scroll', function(e){
     try {
       if (typeof curTab !== 'undefined' && curTab !== 'pos') { setDown(false); return; }
