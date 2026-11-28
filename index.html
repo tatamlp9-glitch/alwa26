@@ -8546,7 +8546,7 @@ ${context()}`;
 /* topcarts: أسماء المشترين فوق بدل الدولار + الأذان صغير، وتصحيح وقت الأذان */
 (function(){
   var st = document.createElement('style');
-  st.textContent = '#is-carts{display:flex;gap:6px;align-items:center}#is-carts .tc{white-space:nowrap;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:inherit;flex:none}#is-carts .tc.on{background:#fff;color:#065f46;border-color:#fff}#is-carts .tc b{margin-inline-start:6px;font-size:11px;background:rgba(0,0,0,.25);border-radius:999px;padding:0 6px}#is-carts .tc.on b{background:#d1fae5}#is-carts .tc.nw{border-style:dashed}#is-pray{flex:none;margin-inline-start:auto;font-size:12px !important;opacity:.9}#is-usd{display:none !important}#info-strip{cursor:default}.pa-b{width:30px;height:30px;border-radius:8px;background:#e2e8f0;font-weight:900}';
+  st.textContent = '#is-carts{display:flex;gap:6px;align-items:center}#is-carts .tc{white-space:nowrap;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:inherit;flex:none}#is-carts .tc.on{background:#fff;color:#065f46;border-color:#fff}#is-carts .tc b{margin-inline-start:6px;font-size:11px;background:rgba(0,0,0,.25);border-radius:999px;padding:0 6px}#is-carts .tc.on b{background:#d1fae5}#is-carts .tc.nw{border-style:dashed}#is-pray{flex:none;margin-inline-start:auto;font-size:12px !important;opacity:.9}#is-usd{display:none !important}#info-strip{cursor:default}@media (min-width:1024px){body #is-carts{max-width:none !important;opacity:1 !important;transform:none !important;overflow:visible !important;pointer-events:auto !important}}.pa-b{width:30px;height:30px;border-radius:8px;background:#e2e8f0;font-weight:900}';
   document.head.appendChild(st);
   function setup(){
     var s = document.getElementById('info-strip'), p = document.getElementById('is-pray'); if (!s || !p) return false;
@@ -8562,10 +8562,19 @@ ${context()}`;
     box.innerHTML = vis.map(function(x, k){
       var c = x[0], i = x[1], on = i === activeCart, n = (i === activeCart ? cart : c.items || []).length;
       var nm = (c.customer || '').trim(), label = nm ? esc(nm.slice(0, 14)) : 'مشتري ' + (k + 1);
-      return '<button type="button" class="tc' + (on ? ' on' : '') + '" onclick="switchCart(' + i + ')">' + label + (n ? '<b>' + n + '</b>' : '') + '</button>';
-    }).join('') + '<button type="button" class="tc nw" onclick="addCart()">＋ مشتري</button>';
+      return '<button type="button" class="tc' + (on ? ' on' : '') + '" onclick="tcGo(' + i + ')">' + label + (n ? '<b>' + n + '</b>' : '') + '</button>';
+    }).join('') + '<button type="button" class="tc nw" onclick="tcGo(-1)">＋ مشتري</button>';
     var on = box.querySelector('.tc.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }
   }
+  window.tcGo = function(i){
+    try { if (i < 0) addCart(); else if (i !== activeCart) switchCart(i); } catch (e) {}
+    if (innerWidth >= 1024) return;
+    setTimeout(function(){
+      var el = document.getElementById('cart-tabs') || document.getElementById('customer-name'); if (!el) return;
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { el.scrollIntoView(); }
+      if (i < 0) { var cn = document.getElementById('customer-name'); if (cn) setTimeout(function(){ try { cn.focus({ preventScroll: true }); } catch (e) {} }, 450); }
+    }, 60);
+  };
   var rt = window.renderCartTabs;
   if (typeof rt === 'function') window.renderCartTabs = function(){ var r = rt.apply(this, arguments); try { draw(); } catch (e) {} return r; };
   var nameT = 0;
