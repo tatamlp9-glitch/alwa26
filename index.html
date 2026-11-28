@@ -8542,4 +8542,49 @@ ${context()}`;
   document.addEventListener('input', function(e){ if (e.target && e.target.closest && e.target.closest('#cart-wrap, #customer-name')) later(); }, true);
 })();
 </script>
+<script>
+/* topcarts: أسماء المشترين فوق بدل الدولار + الأذان صغير، وتصحيح وقت الأذان */
+(function(){
+  var st = document.createElement('style');
+  st.textContent = '#is-carts{display:flex;gap:6px;align-items:center}#is-carts .tc{white-space:nowrap;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:inherit;flex:none}#is-carts .tc.on{background:#fff;color:#065f46;border-color:#fff}#is-carts .tc b{margin-inline-start:6px;font-size:11px;background:rgba(0,0,0,.25);border-radius:999px;padding:0 6px}#is-carts .tc.on b{background:#d1fae5}#is-carts .tc.nw{border-style:dashed}#is-pray{flex:none;margin-inline-start:auto;font-size:12px !important;opacity:.9}#is-usd{display:none !important}#info-strip{cursor:default}.pa-b{width:30px;height:30px;border-radius:8px;background:#e2e8f0;font-weight:900}';
+  document.head.appendChild(st);
+  function setup(){
+    var s = document.getElementById('info-strip'), p = document.getElementById('is-pray'); if (!s || !p) return false;
+    s.removeAttribute('onclick');
+    p.onclick = function(e){ e.stopPropagation(); openMoney(); };
+    if (!document.getElementById('is-carts')) { var c = document.createElement('div'); c.id = 'is-carts'; s.insertBefore(c, s.firstChild); }
+    return true;
+  }
+  function draw(){
+    if (!setup()) return;
+    var box = document.getElementById('is-carts');
+    var vis = carts.map(function(c, i){ return [c, i]; }).filter(function(x){ return !x[0].orderId; });
+    box.innerHTML = vis.map(function(x, k){
+      var c = x[0], i = x[1], on = i === activeCart, n = (i === activeCart ? cart : c.items || []).length;
+      var nm = (c.customer || '').trim(), label = nm ? esc(nm.slice(0, 14)) : 'مشتري ' + (k + 1);
+      return '<button type="button" class="tc' + (on ? ' on' : '') + '" onclick="switchCart(' + i + ')">' + label + (n ? '<b>' + n + '</b>' : '') + '</button>';
+    }).join('') + '<button type="button" class="tc nw" onclick="addCart()">＋ مشتري</button>';
+    var on = box.querySelector('.tc.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }
+  }
+  var rt = window.renderCartTabs;
+  if (typeof rt === 'function') window.renderCartTabs = function(){ var r = rt.apply(this, arguments); try { draw(); } catch (e) {} return r; };
+  var nameT = 0;
+  document.addEventListener('input', function(e){ if (e.target && e.target.id === 'customer-name') { clearTimeout(nameT); nameT = setTimeout(function(){ try { persistCarts(); draw(); } catch (x) {} }, 400); } }, true);
+  try { draw(); } catch (e) {}
+
+  /* تصحيح وقت الأذان: دقائق زيادة/نقصان لكل صلاة */
+  function adj(){ var a = settings.prayAdj; return a && typeof a === 'object' ? a : {}; }
+  var pt = window.prayTimes;
+  if (typeof pt === 'function') window.prayTimes = function(){ var o = pt.apply(this, arguments), a = adj(); for (var k in o) { if (a[k]) o[k] = new Date(o[k].getTime() + a[k] * 60000); } return o; };
+  window.prayAdj = function(k, d){ var a = Object.assign({}, adj()); a[k] = (Number(a[k]) || 0) + d; if (!a[k]) delete a[k]; settings.prayAdj = a; try { saveJSON('alwa_settings', settings); } catch (e) {} renderPrayList(); try { renderInfoStrip(); } catch (e) {} };
+  window.renderPrayList = function(){
+    var t = prayTimes(new Date(), document.getElementById('mn-city').value, 'sunni'), nx = nextPrayer(new Date()), a = adj();
+    document.getElementById('mn-times').innerHTML = '<div class="text-[11px] text-slate-500 mb-1">إذا الوقت مو مثل الجامع، صلّحه بـ − و ＋ (كل ضغطة دقيقة):</div>' + PRAY_NAMES.map(function(x){
+      var k = x[0], n = x[1], v = Number(a[k]) || 0;
+      return '<div class="flex items-center gap-2 p-2 rounded-lg ' + (nx.k === k && k !== 'sunrise' ? 'bg-emerald-100 font-black' : 'bg-slate-50') + '"><span class="flex-1">' + n + '</span><button type="button" class="pa-b" onclick="prayAdj(\'' + k + '\',-1)">−</button><span class="font-mono w-20 text-center">' + hm12(t[k]) + '</span><button type="button" class="pa-b" onclick="prayAdj(\'' + k + '\',1)">＋</button><span class="text-[10px] text-slate-500 w-8 text-center">' + (v ? (v > 0 ? '+' : '') + v : '') + '</span></div>';
+    }).join('');
+  };
+  try { renderInfoStrip(); } catch (e) {}
+})();
+</script>
 </body></html>
