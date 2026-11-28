@@ -8567,13 +8567,18 @@ ${context()}`;
     var on = box.querySelector('.tc.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }
   }
   window.tcGo = function(i){
-    var again = i >= 0 && i === activeCart;   // ضغطة ثانية على نفس الاسم = روح للسلة
-    try { if (i < 0) addCart(); else if (!again) switchCart(i); } catch (e) {}
-    if (innerWidth >= 1024 || !again) return;
+    // الموبايل: ضغطتين بسرعة على الاسم = يرجع فوق · اللابتوب: ضغطة وحدة
+    var now = Date.now(), dbl = tcGo._l && tcGo._l.i === i && now - tcGo._l.t < 450;
+    tcGo._l = { i: i, t: now };
+    try { if (i < 0) { if (!dbl) addCart(); } else if (i !== activeCart) switchCart(i); } catch (e) {}
+    if (innerWidth < 1024 && !dbl) return;
+    if (dbl) tcGo._l = null;
     setTimeout(function(){
-      var el = document.getElementById('cart-tabs') || document.getElementById('customer-name'); if (!el) return;
-      try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { el.scrollIntoView(); }
-    }, 60);
+      var sp = document.getElementById('screen-pos'); if (!sp) return;
+      [sp].concat(Array.prototype.slice.call(sp.querySelectorAll('*'))).forEach(function(el){
+        if (el.scrollTop > 0 && !(el.closest && el.closest('#cart-wrap'))) { try { el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { el.scrollTop = 0; } }
+      });
+    }, 30);
   };
   var rt = window.renderCartTabs;
   if (typeof rt === 'function') window.renderCartTabs = function(){ var r = rt.apply(this, arguments); try { draw(); } catch (e) {} return r; };
