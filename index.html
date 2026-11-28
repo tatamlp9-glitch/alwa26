@@ -3121,7 +3121,7 @@ function updateRecvRest() {
         const e = $('recv-rest'); if (!e) return; const rc = parseNum(($('inv-recv') || {}).value) || 0;
         if (!(rc > 0)) { e.textContent = ''; try { updateTotExtra(); } catch (x) {} return; }
         const sub = cart.reduce((a, i) => a + (Number(i.total) || 0), 0), cb = cart.reduce((a, i) => a + (i.noCom ? 0 : (Number(i.total) || 0)), 0), c = calc(sub, cb);
-        e.textContent = 'الباقي: ' + fmt(Math.max(0, c.grand + recvBasis() - rc));
+        e.textContent = 'الباقي: ' + fmt(c.grand + recvBasis() - rc);
     } catch (x) {}
     try { updateTotExtra(); } catch (x) {}
 }
@@ -3130,7 +3130,7 @@ function updateTotExtra() {
     const rc = parseNum(($('inv-recv') || {}).value) || 0, db = parseNum(($('inv-debt') || {}).value) || 0;
     const sub = cart.reduce((a, i) => a + (Number(i.total) || 0), 0), cb = cart.reduce((a, i) => a + (i.noCom ? 0 : (Number(i.total) || 0)), 0), c = calc(sub, cb);
     let h = '';
-    if (rc > 0) { const bs = recvBasis(); h += (bs > 0 ? '<span class="text-rose-300">الدين: ' + fmt(bs) + ' · </span>' : '') + '<span class="text-emerald-200">الواصل: ' + fmt(rc) + '</span> <span class="text-amber-300">· الباقي: ' + fmt(Math.max(0, c.grand + bs - rc)) + '</span>'; }
+    if (rc > 0) { const bs = recvBasis(); h += (bs > 0 ? '<span class="text-rose-300">الدين: ' + fmt(bs) + ' · </span>' : '') + '<span class="text-emerald-200">الواصل: ' + fmt(rc) + '</span> <span class="text-amber-300">· الباقي: ' + fmt(c.grand + bs - rc) + '</span>'; }
     else if (db > 0) h += '<span class="text-rose-300">الدين الباقي: ' + fmt(db) + '</span> <span class="text-emerald-200">· مع الدين: ' + fmt(c.grand + db) + '</span>';
     t.innerHTML = h; t.classList.toggle('hidden', !h);
 }
@@ -3429,7 +3429,7 @@ function processAndPrintInvoice() {
     while (invoices.some(x => x.id === invoiceCounter)) invoiceCounter++;
     const nt = noteText(carts[activeCart]); const invoice = { id: invoiceCounter, ts: now.getTime(), orderId: oid, customer, ...(carts[activeCart] && carts[activeCart].copyOf ? { copyOf: carts[activeCart].copyOf } : {}), ...(nt ? { note: nt } : {}), ...(carts[activeCart] && carts[activeCart].debt > 0 ? { debtLeft: carts[activeCart].debt } : {}), date: dateStr, items: mergedItems(), subtotal, rate: c.rate, commission: c.commission, grandTotal: c.grand, writer: settings.writer };
     if (carts[activeCart] && carts[activeCart].debtor) { const f = debtorFigures(); delete invoice.debtLeft; Object.assign(invoice, { debtor: true, prevDebt: f.prev, paid: f.paid, ...(f.extra ? { extra: f.extra } : {}), debtLeft: f.final }); }
-    { const rc = parseNum($('inv-recv').value) || 0; if (rc > 0 && !invoice.debtor) { const g = Number(invoice.grandTotal) || 0, bs = recvBasis(); invoice.recv = rc; invoice.rest = Math.max(0, g + bs - rc); if (bs > 0) invoice.prevD = bs; delete invoice.debtLeft; if (invoice.rest > 0) invoice.debtLeft = invoice.rest; window._dChoice = null; } }
+    { const rc = parseNum($('inv-recv').value) || 0; if (rc > 0 && !invoice.debtor) { const g = Number(invoice.grandTotal) || 0, bs = recvBasis(); invoice.recv = rc; invoice.rest = g + bs - rc; if (bs > 0) invoice.prevD = bs; delete invoice.debtLeft; if (invoice.rest > 0) invoice.debtLeft = invoice.rest; window._dChoice = null; } }
     if (window._dChoice === 'add' && !invoice.debtor) invoice.debtLeft = debtorTotal(customer) + (Number(invoice.debtLeft) || 0);
     window._dChoice = null;
     invoices.unshift(invoice);
