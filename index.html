@@ -8381,12 +8381,13 @@ ${context()}`;
         var v = Math.round(parseFloat(el.value) || 0), d = pr ? Math.round(Number(pr.defaultPrice) || 0) : 0;
         var diff = pr && v > 0 && d > 0 && v !== d;
         el.classList.toggle('pdiff', !!diff); el.classList.toggle('up', !!diff && v > d); el.classList.toggle('dn', !!diff && v < d);
+        var typing = el === document.activeElement;   // وقت الكتابة لا نضيف/نشيل سطر حتى ما تهتز الصفحة
         if (diff) {
-          if (!tag && lab) { tag = document.createElement('span'); tag.className = 'pdiff-tag'; lab.appendChild(tag); }
-          tag.className = 'pdiff-tag ' + (v > d ? 'up' : 'dn');
-          tag.textContent = (v > d ? '↑ أغلى' : '↓ أرخص') + ' · بالمواد ' + fmtN(d);
+          if (!tag && lab && !typing) { tag = document.createElement('span'); tag.className = 'pdiff-tag'; lab.appendChild(tag); }
+          if (tag) { tag.className = 'pdiff-tag ' + (v > d ? 'up' : 'dn'); tag.textContent = (v > d ? '↑ أغلى' : '↓ أرخص') + ' · بالمواد ' + fmtN(d); }
           el.title = 'سعرها بالمواد ' + fmtN(d);
-        } else { if (tag) tag.remove(); el.removeAttribute('title'); }
+        } else { if (tag && !typing) tag.remove(); else if (tag) tag.style.visibility = 'hidden'; el.removeAttribute('title'); }
+        if (tag && diff) tag.style.visibility = '';
       });
     } catch (e) {}
   }
@@ -8395,7 +8396,7 @@ ${context()}`;
     if (typeof window.renderCart === 'function' && !window.renderCart._pd) { var o = window.renderCart; var w = function(){ var r = o.apply(this, arguments); mark(); return r; }; w._pd = 1; window.renderCart = w; }
     if (typeof window.liveUpdate === 'function' && !window.liveUpdate._pd) { var o2 = window.liveUpdate; var w2 = function(i, f){ var r = o2.apply(this, arguments); if (f === 'price') mark(); return r; }; w2._pd = 1; window.liveUpdate = w2; }
   }
-  function init(){ wrap(); mark(); setTimeout(function(){ wrap(); mark(); }, 1500); document.addEventListener('input', function(e){ if (e.target && e.target.dataset && e.target.dataset.field === 'price') setTimeout(mark, 0); }, true); }
+  function init(){ wrap(); mark(); setTimeout(function(){ wrap(); mark(); }, 1500); document.addEventListener('input', function(e){ if (e.target && e.target.dataset && e.target.dataset.field === 'price') setTimeout(mark, 0); }, true); document.addEventListener('focusout', function(e){ if (e.target && e.target.dataset && e.target.dataset.field === 'price') setTimeout(mark, 0); }, true); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
@@ -8608,7 +8609,9 @@ ${context()}`;
   st.textContent = 'header.alwa-hd{max-height:240px;transition:max-height .42s cubic-bezier(.2,.8,.2,1),opacity .32s ease,transform .42s cubic-bezier(.2,.8,.2,1),padding .42s cubic-bezier(.2,.8,.2,1)}header.alwa-hd.hd-anim,body.pos-down header.alwa-hd{overflow:hidden}body.pos-down header.alwa-hd{max-height:0 !important;padding-top:0 !important;padding-bottom:0 !important;opacity:0;transform:translateY(-24px)}#is-carts{max-width:3000px;transition:max-width .5s ease,opacity .35s ease .08s,transform .4s cubic-bezier(.2,.8,.2,1) .05s}body:not(.pos-down) #is-carts{max-width:0;opacity:0;transform:translateY(-12px);overflow:hidden;pointer-events:none}#is-pray{font-variant-numeric:tabular-nums}@media (prefers-reduced-motion:reduce){header.alwa-hd,#is-carts{transition:none}}';
   document.head.appendChild(st);
   function hdr(){ var hs = document.querySelectorAll('header'); for (var i = 0; i < hs.length; i++) { if (hs[i].offsetParent !== null || hs[i].classList.contains('alwa-hd')) return hs[i]; } return null; }
-  var down = false;
+  var down = false, lastFocus = 0;
+  document.addEventListener('focusin', function(e){ if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) lastFocus = Date.now(); }, true);
+  document.addEventListener('focusout', function(){ lastFocus = Date.now(); }, true);
   function setDown(v){
     if (v === down) return; down = v;
     var h = hdr(); if (h) { h.classList.add('alwa-hd'); h.classList.add('hd-anim'); clearTimeout(h._hdT); h._hdT = setTimeout(function(){ h.classList.remove('hd-anim'); }, 480); }
@@ -8622,6 +8625,8 @@ ${context()}`;
       var sp = document.getElementById('screen-pos'); if (!sp || !(t === sp || sp.contains(t))) return;
       if (t.id === 'cart-wrap' || (t.closest && t.closest('#cart-wrap'))) return;
       if (innerWidth >= 1024) { setDown(false); return; }
+      var ae = document.activeElement; if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;   // وقت الكتابة لا نحرك الشريط
+      if (Date.now() - lastFocus < 900) return;
       var y = t.scrollTop;
       if (!down && y > 80) setDown(true); else if (down && y < 20) setDown(false);
     } catch (x) {}
