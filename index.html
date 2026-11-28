@@ -8547,7 +8547,7 @@ ${context()}`;
 /* topcarts: أسماء المشترين فوق بدل الدولار + الأذان صغير، وتصحيح وقت الأذان */
 (function(){
   var st = document.createElement('style');
-  st.textContent = '#is-carts{display:flex;gap:6px;align-items:center}#is-carts .tc{white-space:nowrap;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:inherit;flex:none}#is-carts .tc.on{background:#fff;color:#065f46;border-color:#fff}#is-carts .tc b{margin-inline-start:6px;font-size:11px;background:rgba(0,0,0,.25);border-radius:999px;padding:0 6px}#is-carts .tc.on b{background:#d1fae5}#is-carts .tc.nw{border-style:dashed}#is-pray{flex:none;margin-inline-start:auto;font-size:12px !important;opacity:.9}#is-usd{display:none !important}#info-strip{cursor:default}@media (min-width:1024px){body #is-carts{max-width:none !important;opacity:1 !important;transform:none !important;overflow:visible !important;pointer-events:auto !important}}.pa-b{width:30px;height:30px;border-radius:8px;background:#e2e8f0;font-weight:900}';
+  st.textContent = '#is-carts{display:flex;gap:6px;align-items:center}#is-carts .tc{white-space:nowrap;border-radius:999px;padding:5px 14px;font-weight:800;font-size:14px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:inherit;flex:none}#is-carts .tc.on{background:#fff;color:#065f46;border-color:#fff}#is-carts .tc b{margin-inline-start:6px;font-size:11px;background:rgba(0,0,0,.25);border-radius:999px;padding:0 6px}#is-carts .tc.on b{background:#d1fae5}#is-carts .tc.nw{border-style:dashed}#is-pray{flex:none;margin-inline-start:auto;font-size:12px !important;opacity:.9}#is-usd{display:none !important}#info-strip{cursor:default}body #is-carts{max-width:none !important;opacity:1 !important;transform:none !important;overflow:visible !important;pointer-events:auto !important}.pa-b{width:30px;height:30px;border-radius:8px;background:#e2e8f0;font-weight:900}';
   document.head.appendChild(st);
   function setup(){
     var s = document.getElementById('info-strip'), p = document.getElementById('is-pray'); if (!s || !p) return false;
@@ -8563,7 +8563,7 @@ ${context()}`;
     box.innerHTML = vis.map(function(x, k){
       var c = x[0], i = x[1], on = i === activeCart, n = (i === activeCart ? cart : c.items || []).length;
       var nm = (c.customer || '').trim(), label = nm ? esc(nm.slice(0, 14)) : 'مشتري ' + (k + 1);
-      return '<button type="button" class="tc' + (on ? ' on' : '') + '" onclick="tcGo(' + i + ')">' + label + (n ? '<b>' + n + '</b>' : '') + '</button>';
+      return '<button type="button" data-i="' + i + '" class="tc' + (on ? ' on' : '') + '" onclick="tcGo(' + i + ')">' + label + (n ? '<b>' + n + '</b>' : '') + '</button>';
     }).join('') + '<button type="button" class="tc nw" onclick="tcGo(-1)">＋ مشتري</button>';
     // نحرك الشريط بالعرض بس (scrollIntoView جان يحرك الشاشة كلها فوق وتحت وقت الكتابة)
     var on = box.querySelector('.tc.on'), sw = document.getElementById('info-strip');
@@ -8651,5 +8651,65 @@ ${context()}`;
 <script>
 /* nocirc: شيل الدواير تحت الشريط اللي فوق */
 (function(){ var s = document.createElement('style'); s.textContent = 'html body #app-owner > header::after,html body #app-worker > header::after{display:none !important;content:none !important}'; document.head.appendChild(s); })();
+</script>
+<script>
+/* tcdrag: ترتيب أسماء المشترين بضغطة مطوّلة وسحب */
+(function(){
+  var st = document.createElement('style');
+  st.textContent = '#is-carts .tc{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .15s ease,box-shadow .15s ease}#is-carts .tc.drg{transform:scale(1.12);box-shadow:0 8px 22px rgba(0,0,0,.45);z-index:5;position:relative;outline:2px solid #facc15}#is-carts.drg-on .tc:not(.drg){opacity:.75}';
+  document.head.appendChild(st);
+  var T = null, D = null, lastDrag = 0;
+  function pt(e){ var t = e.touches && e.touches[0] || e.changedTouches && e.changedTouches[0] || e; return { x: t.clientX, y: t.clientY }; }
+  function start(e){
+    var b = e.target.closest && e.target.closest('#is-carts .tc[data-i]'); if (!b) return;
+    if (e.type === 'mousedown' && e.button !== 0) return;
+    var p = pt(e); cancel();
+    T = { b: b, x: p.x, y: p.y, timer: setTimeout(function(){ begin(b); }, 450) };
+  }
+  function begin(b){
+    var box = document.getElementById('is-carts'); if (!box) return;
+    D = { b: b, box: box }; T = null;
+    b.classList.add('drg'); box.classList.add('drg-on');
+    try { navigator.vibrate && navigator.vibrate(30); } catch (e) {}
+  }
+  function cancel(){ if (T) { clearTimeout(T.timer); T = null; } }
+  function move(e){
+    var p = pt(e);
+    if (T && (Math.abs(p.x - T.x) > 8 || Math.abs(p.y - T.y) > 8)) cancel();
+    if (!D) return;
+    if (e.cancelable) e.preventDefault();
+    var el = document.elementFromPoint(p.x, p.y), o = el && el.closest && el.closest('#is-carts .tc[data-i]');
+    var sw = document.getElementById('info-strip');
+    if (sw) { var r = sw.getBoundingClientRect(); if (p.x < r.left + 30) sw.scrollLeft -= 12; else if (p.x > r.right - 30) sw.scrollLeft += 12; }
+    if (!o || o === D.b) return;
+    var r2 = o.getBoundingClientRect(), mid = r2.left + r2.width / 2;
+    var rtl = getComputedStyle(D.box).direction === 'rtl';
+    var after = rtl ? p.x < mid : p.x > mid;
+    D.box.insertBefore(D.b, after ? o.nextSibling : o);
+  }
+  function end(){
+    cancel(); if (!D) return;
+    var box = D.box; D.b.classList.remove('drg'); box.classList.remove('drg-on'); D = null; lastDrag = Date.now();
+    try {
+      var order = Array.prototype.map.call(box.querySelectorAll('.tc[data-i]'), function(x){ return +x.dataset.i; });
+      persistCarts();
+      var act = carts[activeCart], slots = [];
+      carts.forEach(function(c, i){ if (!c.orderId) slots.push(i); });
+      if (order.length !== slots.length) { renderCartTabs(); return; }
+      var moved = order.map(function(i){ return carts[i]; }), nc = carts.slice();
+      slots.forEach(function(s, k){ nc[s] = moved[k]; });
+      carts.length = 0; Array.prototype.push.apply(carts, nc);
+      activeCart = Math.max(0, carts.indexOf(act));
+      saveJSON('alwa_carts', { carts: carts, active: activeCart });
+      renderCartTabs();
+    } catch (e) { try { renderCartTabs(); } catch (x) {} }
+  }
+  document.addEventListener('touchstart', start, { passive: true, capture: true });
+  document.addEventListener('touchmove', move, { passive: false, capture: true });
+  document.addEventListener('touchend', end, true); document.addEventListener('touchcancel', end, true);
+  document.addEventListener('mousedown', start, true); document.addEventListener('mousemove', move, true); document.addEventListener('mouseup', end, true);
+  document.addEventListener('contextmenu', function(e){ if (e.target.closest && e.target.closest('#is-carts .tc')) e.preventDefault(); }, true);
+  document.addEventListener('click', function(e){ if (Date.now() - lastDrag < 500 && e.target.closest && e.target.closest('#is-carts')) { e.stopPropagation(); e.preventDefault(); } }, true);
+})();
 </script>
 </body></html>
