@@ -8715,11 +8715,12 @@ ${context()}`;
 <script>
 /* numpad: أرقام الكيبورد الجانبي تشتغل حتى لو NumLock مطفي */
 (function(){
-  document.addEventListener('keydown', function(e){
+  window.addEventListener('keydown', function(e){
     try {
       if (e.ctrlKey || e.altKey || e.metaKey) return;
-      var m = /^Numpad(\d|Decimal)$/.exec(e.code || ''); if (!m) return;
-      var ch = m[1] === 'Decimal' ? '.' : m[1];
+      var m = /^Numpad(\d|Decimal)$/.exec(e.code || ''), ch = m ? (m[1] === 'Decimal' ? '.' : m[1]) : '';
+      if (!ch && e.location === 3) ch = { Insert: '0', End: '1', ArrowDown: '2', PageDown: '3', ArrowLeft: '4', Clear: '5', ArrowRight: '6', Home: '7', ArrowUp: '8', PageUp: '9', Delete: '.' }[e.key] || '';
+      if (!ch) return;
       if (e.key === ch || e.key === ',' || /^\d$/.test(e.key)) return;   // NumLock شغال: خليه طبيعي
       var el = document.activeElement; if (!el) return;
       var tag = el.tagName; if (!(tag === 'TEXTAREA' || (tag === 'INPUT' && /^(text|number|tel|search|)$/.test(el.type || '')))) return;
