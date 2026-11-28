@@ -8483,7 +8483,7 @@ ${context()}`;
     var h = groupsHTML(act);
     if (done.length) {
       var shut = closed() && orderFilter !== 'invoiced';
-      h += '<section id="og-done" class="pbox pbox-done lg:col-span-2"><div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-circle-check ml-1"></i> الطلبيات المخلصة</span><span class="text-xs font-bold flex items-center gap-2">' + done.length + ' طلبية · تمت الفوترة' + (orderFilter !== 'invoiced' ? ' <button type="button" class="od-tg" onclick="toggleDoneOrders()">' + (shut ? 'إظهار' : 'إخفاء') + '</button>' : '') + '</span></div>' + (shut ? '' : '<div class="tickets">' + done.map(function(o){ return ticketHTML(o, 'owner'); }).join('') + '</div>') + '</section>';
+      h += '<section id="og-done" class="pbox pbox-done lg:col-span-2"><div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-circle-check ml-1"></i> الطلبيات المخلصة</span><span class="text-xs font-bold flex items-center gap-2">' + done.length + ' طلبية · تمت الفوترة' + (orderFilter !== 'invoiced' ? ' <button type="button" class="od-tg" onclick="toggleDoneOrders()">' + (shut ? 'إظهار' : 'إخفاء') + '</button>' : '') + '</span></div>' + (typeof window.doneBar === 'function' ? window.doneBar(done) : '') + (shut ? '' : '<div class="tickets">' + done.map(function(o){ return ticketHTML(o, 'owner'); }).join('') + '</div>') + '</section>';
     }
     box.innerHTML = h; sumBox(box); jumpBar(box, done.length);
   };
@@ -8729,6 +8729,42 @@ ${context()}`;
       el.dispatchEvent(new Event('input', { bubbles: true }));
     } catch (x) {}
   }, true);
+})();
+</script>
+<script>
+/* donettl: الطلبيات المخلصة — وقت الحذف التلقائي + حذف الكل */
+(function(){
+  var st = document.createElement('style');
+  st.textContent = '.od-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:8px 10px;border-radius:12px;background:rgba(79,70,229,.12);font-weight:800;font-size:13px}.od-bar select{padding:5px 8px;border-radius:9px;border:1.5px solid #818cf8;font-weight:800;background:#fff;color:#1e1b4b}.od-bar .od-nx{opacity:.8;font-size:12px}.od-bar .od-del{margin-inline-start:auto;padding:7px 14px;border-radius:10px;background:#dc2626;color:#fff;font-weight:900}html.dark .od-bar select{background:#1e293b;color:#e2e8f0}';
+  document.head.appendChild(st);
+  var OPTS = [[0, 'ما تنحذف'], [6, '6 ساعات'], [24, 'يوم'], [72, '3 أيام'], [168, 'أسبوع'], [720, 'شهر']];
+  function ttl(){ return Number(settings.doneTTL) || 0; }
+  function doneAt(o){ try { var iv = (invoices || []).find(function(x){ return x.id === o.invoiceId; }); if (iv && iv.ts) return iv.ts; } catch (e) {} return o.upd || o.created || Date.now(); }
+  function left(ms){ var h = ms / 36e5; if (h >= 24) { var d = Math.round(h / 24); return d + ' يوم'; } if (h >= 1) return Math.round(h) + ' ساعة'; return Math.max(1, Math.round(ms / 6e4)) + ' دقيقة'; }
+  function toTrash(list){
+    if (!list.length) return;
+    var ids = {}; list.forEach(function(o){ ids[o.id] = 1; trash.unshift({ type: 'order', data: o, deletedAt: Date.now() }); try { addTomb('orders', o.id); } catch (e) {} });
+    orders = orders.filter(function(x){ return !ids[x.id]; });
+    saveData(); saveOrders(); try { updateTrashBadge(); } catch (e) {}
+  }
+  function purge(){
+    try {
+      var t = ttl(); if (!t || typeof orders === 'undefined') return;
+      var cut = Date.now() - t * 36e5, old = orders.filter(function(o){ return o.invoiced && doneAt(o) < cut; });
+      if (old.length) { toTrash(old); try { refreshOrders(); } catch (e) {} }
+    } catch (e) {}
+  }
+  window.doneBar = function(done){
+    var t = ttl(), nx = '';
+    if (t && done.length) { var soon = Math.min.apply(null, done.map(function(o){ return doneAt(o) + t * 36e5; })); nx = '<span class="od-nx">· أقرب وحدة تنحذف بعد ' + left(Math.max(0, soon - Date.now())) + '</span>'; }
+    return '<div class="od-bar"><span>🗑 تنحذف تلقائياً بعد:</span><select onchange="setDoneTTL(this.value)">' + OPTS.map(function(x){ return '<option value="' + x[0] + '"' + (x[0] === t ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' + nx + '<button type="button" class="od-del" onclick="delAllDone()">🗑 حذف الكل (' + done.length + ')</button></div>';
+  };
+  window.setDoneTTL = function(v){ settings.doneTTL = Number(v) || 0; try { saveJSON('alwa_settings', settings); } catch (e) {} purge(); try { renderOrdersOwner(); } catch (e) {} try { showToast(settings.doneTTL ? 'المخلصة تنحذف تلقائياً (تروح للمحذوفات)' : 'المخلصة ما تنحذف تلقائياً'); } catch (e) {} };
+  window.delAllDone = function(){
+    var list = orders.filter(function(o){ return o.invoiced; }); if (!list.length) return;
+    confirmBox('تنقل كل الطلبيات المخلصة (' + list.length + ') إلى المحذوفات؟', function(){ toTrash(list); try { renderOrdersOwner(); } catch (e) {} try { showToast('انتقلت للمحذوفات'); } catch (e) {} });
+  };
+  setTimeout(purge, 4000); setInterval(purge, 10 * 60e3);
 })();
 </script>
 </body></html>
