@@ -8587,4 +8587,43 @@ ${context()}`;
   try { renderInfoStrip(); } catch (e) {}
 })();
 </script>
+<script>
+/* scrollbar: الأسماء تطلع لما تنزل والشريط اللي فوق يختفي + عداد الأذان بالثواني */
+(function(){
+  var st = document.createElement('style');
+  st.textContent = 'body:not(.pos-down) #is-carts{display:none}body.pos-down header.alwa-hd{display:none !important}#is-pray{font-variant-numeric:tabular-nums}';
+  document.head.appendChild(st);
+  function hdr(){ var hs = document.querySelectorAll('header'); for (var i = 0; i < hs.length; i++) { if (hs[i].offsetParent !== null || hs[i].classList.contains('alwa-hd')) return hs[i]; } return null; }
+  var down = false;
+  function setDown(v){
+    if (v === down) return; down = v;
+    var h = hdr(); if (h) h.classList.add('alwa-hd');
+    document.body.classList.toggle('pos-down', v);
+  }
+  document.addEventListener('scroll', function(e){
+    try {
+      if (typeof curTab !== 'undefined' && curTab !== 'pos') { setDown(false); return; }
+      var t = e.target; if (!t || t.nodeType !== 1) return;
+      var sp = document.getElementById('screen-pos'); if (!sp || !(t === sp || sp.contains(t))) return;
+      if (t.id === 'cart-wrap' || (t.closest && t.closest('#cart-wrap'))) return;
+      if (innerWidth >= 1024) { setDown(false); return; }
+      var y = t.scrollTop;
+      if (!down && y > 80) setDown(true); else if (down && y < 20) setDown(false);
+    } catch (x) {}
+  }, true);
+  function two(n){ return (n < 10 ? '0' : '') + n; }
+  function tick(){
+    try {
+      var p = document.getElementById('is-pray'); if (!p) return;
+      if (typeof curTab !== 'undefined' && curTab !== 'pos') { setDown(false); return; }
+      var n = nextPrayer(new Date()), s = Math.max(0, Math.floor((n.at - Date.now()) / 1000));
+      var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+      p.textContent = '🕌 ' + n.n + ' بعد ' + (h ? h + ':' + two(m) : m) + ':' + two(sec);
+    } catch (e) {}
+  }
+  var ri = window.renderInfoStrip;
+  if (typeof ri === 'function') window.renderInfoStrip = function(){ var r = ri.apply(this, arguments); tick(); return r; };
+  setInterval(tick, 1000); tick();
+})();
+</script>
 </body></html>
