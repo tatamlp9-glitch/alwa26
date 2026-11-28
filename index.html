@@ -8466,25 +8466,36 @@ ${context()}`;
     var groups = {};
     list.forEach(function(o){ var k = (o.who || '').trim() || String(o.customer || '').trim(); (groups[k] = groups[k] || []).push(o); });
     var names = Object.keys(groups).sort(function(a, b){ return (groups[b].filter(function(o){ return orderState(o) === 1; }).length - groups[a].filter(function(o){ return orderState(o) === 1; }).length) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)); });
-    return names.map(function(n){
+    jumpList = names.map(function(n, gi){ var g = groups[n]; return { n: n, gi: gi, c: g.length, p: g.filter(function(o){ return orderState(o) === 1; }).length }; });
+    return names.map(function(n, gi){
       var g = groups[n], pend = g.filter(function(o){ return orderState(o) === 1; }).length, rdy = g.filter(function(o){ return orderState(o) === 0; }).length;
-      return '<section class="pbox ' + (g.length > 1 ? 'lg:col-span-2' : '') + '"><div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-user ml-1"></i> ' + (n ? esc(n) : 'بدون اسم') + '</span><span class="text-xs font-bold">' + g.length + ' طلبية' + (pend ? ' · قيد التجهيز ' + pend : '') + (rdy ? ' · جاهزة ' + rdy : '') + '</span></div><div class="tickets">' + g.map(function(o){ return ticketHTML(o, 'owner'); }).join('') + '</div></section>';
+      return '<section id="og-' + gi + '" class="pbox ' + (g.length > 1 ? 'lg:col-span-2' : '') + '"><div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-user ml-1"></i> ' + (n ? esc(n) : 'بدون اسم') + '</span><span class="text-xs font-bold">' + g.length + ' طلبية' + (pend ? ' · قيد التجهيز ' + pend : '') + (rdy ? ' · جاهزة ' + rdy : '') + '</span></div><div class="tickets">' + g.map(function(o){ return ticketHTML(o, 'owner'); }).join('') + '</div></section>';
     }).join('');
   }
   window.renderOrdersOwner = function(){
     var box = document.getElementById('orders-list'); if (!box) return;
     var list = orders.slice();
     if (orderFilter !== 'all') { var want = { ready: 0, pending: 1, invoiced: 2 }[orderFilter]; list = list.filter(function(o){ return orderState(o) === want; }); }
-    if (!list.length) { box.innerHTML = emptyBox('clip', 'لا توجد طلبيات', 'اضغط «طلبية جديدة» للبدء'); sumBox(box); return; }
+    if (!list.length) { box.innerHTML = emptyBox('clip', 'لا توجد طلبيات', 'اضغط «طلبية جديدة» للبدء'); sumBox(box); jumpList = []; jumpBar(box, 0); return; }
     var act = list.filter(function(o){ return orderState(o) !== 2; }).sort(function(a, b){ return orderState(a) - orderState(b) || ((b.created || 0) - (a.created || 0)); });
     var done = list.filter(function(o){ return orderState(o) === 2; }).sort(function(a, b){ return (b.upd || b.created || 0) - (a.upd || a.created || 0); });
     var h = groupsHTML(act);
     if (done.length) {
       var shut = closed() && orderFilter !== 'invoiced';
-      h += '<section class="pbox pbox-done lg:col-span-2"><div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-circle-check ml-1"></i> الطلبيات المخلصة</span><span class="text-xs font-bold flex items-center gap-2">' + done.length + ' طلبية · تمت الفوترة' + (orderFilter !== 'invoiced' ? ' <button type="button" class="od-tg" onclick="toggleDoneOrders()">' + (shut ? 'إظهار' : 'إخفاء') + '</button>' : '') + '</span></div>' + (shut ? '' : '<div class="tickets">' + done.map(function(o){ return ticketHTML(o, 'owner'); }).join('') + '</div>') + '</section>';
+      h += '<section id="og-done" class="pbox pbox-done lg:col-span-2"><div class="pbox-h"><span class="text-lg"><i class="fa-solid fa-circle-check ml-1"></i> الطلبيات المخلصة</span><span class="text-xs font-bold flex items-center gap-2">' + done.length + ' طلبية · تمت الفوترة' + (orderFilter !== 'invoiced' ? ' <button type="button" class="od-tg" onclick="toggleDoneOrders()">' + (shut ? 'إظهار' : 'إخفاء') + '</button>' : '') + '</span></div>' + (shut ? '' : '<div class="tickets">' + done.map(function(o){ return ticketHTML(o, 'owner'); }).join('') + '</div>') + '</section>';
     }
-    box.innerHTML = h; sumBox(box);
+    box.innerHTML = h; sumBox(box); jumpBar(box, done.length);
   };
+  var jumpList = [];
+  (function(){ var s = document.createElement('style'); s.textContent = '#orders-jump{position:sticky;top:0;z-index:30;display:flex;gap:6px;overflow-x:auto;padding:8px;margin:0 0 10px;background:rgba(15,23,42,.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:14px;scrollbar-width:thin}#orders-jump.hidden{display:none}#orders-jump button{flex:none;padding:7px 14px;border-radius:999px;font-weight:800;font-size:14px;background:#fff;color:#0f172a;white-space:nowrap}#orders-jump button b{margin-inline-start:6px;font-size:11px;background:#f59e0b;color:#fff;border-radius:999px;padding:0 6px}#orders-jump button.ok b{background:#16a34a}#orders-jump button.dn{background:#4f46e5;color:#fff}#orders-jump .lb{flex:none;align-self:center;color:#cbd5e1;font-size:12px;font-weight:800;padding:0 4px}html:not(.dark) #orders-jump{background:rgba(255,255,255,.94);box-shadow:0 4px 14px rgba(0,0,0,.12)}html:not(.dark) #orders-jump button{background:#f1f5f9}html:not(.dark) #orders-jump .lb{color:#475569}#orders-list > section[id^="og-"]{scroll-margin-top:72px}.og-flash{animation:ogFl 1.2s ease}@keyframes ogFl{0%,60%{box-shadow:0 0 0 5px #facc15}100%{box-shadow:none}}'; document.head.appendChild(s); })();
+  window.ordJump = function(id){ var el = document.getElementById(id); if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.remove('og-flash'); void el.offsetWidth; el.classList.add('og-flash'); };
+  function jumpBar(box, nd){
+    var b = document.getElementById('orders-jump');
+    if (!b) { b = document.createElement('div'); b.id = 'orders-jump'; box.parentNode.insertBefore(b, box); }
+    if (jumpList.length + (nd ? 1 : 0) < 2) { b.classList.add('hidden'); b.innerHTML = ''; return; }
+    b.classList.remove('hidden');
+    b.innerHTML = '<span class="lb">انتقل:</span>' + jumpList.map(function(x){ return '<button type="button" class="' + (x.p ? '' : 'ok') + '" onclick="ordJump(\'og-' + x.gi + '\')">' + (x.n ? esc(x.n) : 'بدون اسم') + '<b>' + x.c + '</b></button>'; }).join('') + (nd ? '<button type="button" class="dn" onclick="ordJump(\'og-done\')">✓ المخلصة<b>' + nd + '</b></button>' : '');
+  }
   function sumBox(box){
     try {
       if (!document.getElementById('orders-sum')) { var d = document.createElement('div'); d.id = 'orders-sum'; box.parentNode.insertBefore(d, box); }
