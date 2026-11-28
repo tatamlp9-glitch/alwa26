@@ -8567,12 +8567,12 @@ ${context()}`;
     var on = box.querySelector('.tc.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }
   }
   window.tcGo = function(i){
-    try { if (i < 0) addCart(); else if (i !== activeCart) switchCart(i); } catch (e) {}
-    if (innerWidth >= 1024) return;
+    var again = i >= 0 && i === activeCart;   // ضغطة ثانية على نفس الاسم = روح للسلة
+    try { if (i < 0) addCart(); else if (!again) switchCart(i); } catch (e) {}
+    if (innerWidth >= 1024 || !again) return;
     setTimeout(function(){
       var el = document.getElementById('cart-tabs') || document.getElementById('customer-name'); if (!el) return;
       try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { el.scrollIntoView(); }
-      if (i < 0) { var cn = document.getElementById('customer-name'); if (cn) setTimeout(function(){ try { cn.focus({ preventScroll: true }); } catch (e) {} }, 450); }
     }, 60);
   };
   var rt = window.renderCartTabs;
